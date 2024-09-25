@@ -81,6 +81,9 @@ def parse_args():
         "--validation_file", type=str, default=None, help="A csv or a json contaiining the validation data.",
     )
     parser.add_argument(
+        "--context_file", type=str, default=None, help="A csv or a json contaiining the context.",
+    )
+    parser.add_argument(
         "--max_seq_length",
         type=int,
         default=128,
@@ -351,7 +354,11 @@ def main():
             if args.validation_file is not None:
                 data_files["validation"] = args.validation_file
                 extension = args.validation_file.split(".")[-1]
+            if args.context_file is not None:
+                data_files["context"] = args.context_file
+                extension = args.context_file.split(".")[-1]
             raw_dataset = load_dataset(extension, data_file=data_files)
+            
         # Trim a number of training example
         if args.debug:
             for split in raw_dataset.keys():
@@ -365,10 +372,10 @@ def main():
             column_names = raw_dataset["validation"].column_names
 
         # When using your own dataset or a different dataset from swag, you will pprobably neeed to change this
-        ending_names = [f"ending{i}" for i in range(4)]
-        context_name = "sent1"
-        question_header_name = "sent2"
-        label_column_name = "label" if "label" in column_names else "labels"
+        
+        paragraphs_name = "paragraphs"
+        question_name = "question"
+        label_column_name = "relevant"
 
         # Load pretrained model and tokenizer
         #
@@ -418,14 +425,9 @@ def main():
         padding = "max_length" if args.pad_to_max_length else False
 
         def preprocess_function(examples):
-            first_sentences = [[context]* 4 for context in examples[context_name]]
-            question_headers = examples[question_header_name]
+            first_sentences = [[question]* 4 for question in examples[question_name]]
             second_sentences = [
-                [f"{header} {examples[end][i]}" for end in ending_names] for i, header in enumerate(question_headers)
-                # header example[ending0][i]
-                # header example[ending1][i]
-                # header example[ending2][i]
-                # header example[ending3][i]
+                [raw_dataset["context"][context_id] for context_id in context_ids] for i, context_ids in enumerate(examples[paragraphs_name])
             ]
             labels = examples[label_column_name]
 
