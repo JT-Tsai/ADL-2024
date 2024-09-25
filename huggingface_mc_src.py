@@ -55,10 +55,14 @@ from transformers import (
 
 from transformers.utils import PaddingStrategy, check_min_version, send_example_telemetry
 
+import ipdb
+
 logger = get_logger(__name__)
 # You should update this to your particular problem to have better documentation of `model_type`
 MODEL_CONFIG_CLASSES = list(MODEL_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
+
+# ipdb.set_trace()
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Finetune a transformers model on a multiple choice task")
@@ -71,7 +75,7 @@ def parse_args():
     parser.add_argument(
         "--dataset_config_name",
         type=str,
-        defualt=None,
+        default=None,
         help="The configuration name of the datast to use (via the datasets library)",
     )
     parser.add_argument(
@@ -127,9 +131,9 @@ def parse_args():
         help="Batch size (per device) for the training dataloader.",
     )
     parser.add_argument(
-        "learning_rate",
+        "--learning_rate",
         type=float,
-        defualt=5e-5,
+        default=5e-5,
         help="Initial learning rate (after the potential warmup period) to use.",
     )
     parser.add_argument("--weight_decay", type=float, default=0.0, help="Weight decay to use.")
@@ -163,7 +167,7 @@ def parse_args():
         type=str,
         default=None,
         help="Model type to use if training from scratch.",
-        choice=MODEL_TYPES,
+        choices=MODEL_TYPES,
     )
     parser.add_argument(
         "--debug", 
@@ -185,7 +189,7 @@ def parse_args():
         )
     )
     parser.add_argument(
-        "--checkpointing_step",
+        "--checkpointing_steps",
         type=str,
         default=None, 
         help="Whether the various states should be saved at the end of every n steps, or 'epoch' for each epoch.",
@@ -267,7 +271,7 @@ class DataCollatorForMultipleChoice:
             padding=self.padding,
             max_length=self.max_length,
             pad_to_multiple_of=self.pad_to_multiple_of,
-            return_tensor="pt",
+            return_tensors="pt",
         )
 
         # Un-flatten
@@ -292,7 +296,7 @@ def main():
         accelerator_log_kwargs["log_with"] = args.report_to
         accelerator_log_kwargs["project_dir"] = args.output_dir
 
-    accelerator = Accelerator(gradient_accumulation_steps=args.gradient_accumulation_step, **accelerator_log_kwargs)
+    accelerator = Accelerator(gradient_accumulation_steps=args.gradient_accumulation_steps, **accelerator_log_kwargs)
 
     # Make one log on every process with the configuration for debugging
     logging.basicConfig(
@@ -305,7 +309,7 @@ def main():
         datasets.utils.logging.set_verbosity_warning()
         transformers.utils.logging.set_verbosity_info()
     else:
-        datasets.utils.loggings.set_verbosity_error()
+        datasets.utils.logging.set_verbosity_error()
         transformers.utils.logging.set_verbosity_error()
     
     # If passed along, set the training seed now.
@@ -355,9 +359,11 @@ def main():
                 data_files["validation"] = args.validation_file
                 extension = args.validation_file.split(".")[-1]
             if args.context_file is not None:
-                data_files["context"] = args.context_file
-                extension = args.context_file.split(".")[-1]
-            raw_dataset = load_dataset(extension, data_file=data_files)
+                with open(args.context_file, 'r', encoding="utf-8") as file:
+                    # ipdb.set_trace()
+                    context = json.load(file)
+
+            raw_dataset = load_dataset(extension, data_files=data_files)
             
         # Trim a number of training example
         if args.debug:
@@ -372,10 +378,6 @@ def main():
             column_names = raw_dataset["validation"].column_names
 
         # When using your own dataset or a different dataset from swag, you will pprobably neeed to change this
-        
-        paragraphs_name = "paragraphs"
-        question_name = "question"
-        label_column_name = "relevant"
 
         # Load pretrained model and tokenizer
         #
@@ -416,7 +418,7 @@ def main():
 
         # We resize the embeddings only when necessary to avoid index errors. If you are creating a model from scratch
         # on a small vocab and want a smaller embedding size, remove this test.
-        embedding_size = model.get_input_embedding().weight.shape[0]
+        embedding_size = model.get_input_embeddings().weight.shape[0]
         if len(tokenizer) > embedding_size:
             model.resize_token_embeddings(len(tokenizer))
         
@@ -424,16 +426,27 @@ def main():
         # First we tokenize all the texts.
         padding = "max_length" if args.pad_to_max_length else False
 
+        """################################################################################"""
+
         def preprocess_function(examples):
-            first_sentences = [[question]* 4 for question in examples[question_name]]
+            # Questions
+            first_sentences = [[question]* 4 for question in examples["question"]]
+            # Answers_id
+            paragraphs_ids = [[ids for ids in example] for example in examples["paragraphs"]]
+            # context
             second_sentences = [
-                [raw_dataset["context"][context_id] for context_id in context_ids] for i, context_ids in enumerate(examples[paragraphs_name])
+                [context[id] for id in ids] for ids in paragraphs_ids
             ]
-            labels = examples[label_column_name]
+            # the index of correct answer
+            labels = [paragraphs_ids[i].index(examples['relevant'][i]) for i in range(len(examples["id"]))]
+
+            # ipdb.set_trace()
 
             # Flatten out
             first_sentences = list(chain(*first_sentences))
             second_sentences = list(chain(*second_sentences))
+
+            # ipdb.set_trace()
 
             # Tokenize
             tokenized_example = tokenizer(
@@ -447,6 +460,9 @@ def main():
             # k -> input_ids, attention_mask
             tokenized_input = {k: [v[i: i+4] for i in range(0, len(v), 4)] for k, v in tokenized_example.items()}
             tokenized_input["label"] = labels
+
+            # ipdb.set_trace()
+            
             return tokenized_input
         
         with accelerator.main_process_first():
@@ -461,6 +477,8 @@ def main():
         for index in random.sample(range(len(train_dataset)), 3):
             logger.info(f"Sample {index} of the training set: {train_dataset[index]}.")
         
+        # ipdb.set_trace()
+
         # DataLoaders creation:
         if args.pad_to_max_length:
             # If padding was already done ot max length, we use the default data collator that will just convert everything
@@ -483,18 +501,18 @@ def main():
         train_dataloader = DataLoader(
             train_dataset, shuffle=True, collate_fn=data_collator, batch_size=args.per_device_train_batch_size
         )
-        eval_dataloader = DataLoader(eval_dataset, collate_fn=data_collator, batch_size=args.per_devce_train_batch_size)
+        eval_dataloader = DataLoader(eval_dataset, collate_fn=data_collator, batch_size=args.per_device_train_batch_size)
 
         # Optimizer
         # Split weights in two group, onw with weight decay and ther other not.
         no_decay = ["bias", "LayerNorm.weight"]
         optimizer_grouped_parameters = [
             {
-                "param": [p for n, p in model.named_parameters() if not any (nd in n for nd in no_decay)],
+                "params": [p for n, p in model.named_parameters() if not any (nd in n for nd in no_decay)],
                 "weight_decay": args.weight_decay,
             },
             {
-                "param": [p for n, p in model.named_parameters() if any (nd in n for nd in no_decay)],
+                "params": [p for n, p in model.named_parameters() if any (nd in n for nd in no_decay)],
                 "weight_decay": 0.0,
             },
         ]
@@ -542,7 +560,7 @@ def main():
         if args.with_tracking:
             experiment_config = vars(args)
             # TensorBoard cannot log Enums, need the raw value
-            experiment_config["lr_schuduler_type"] = experiment_config["lr_schuduler_type"].value
+            experiment_config["lr_scheduler_type"] = experiment_config["lr_scheduler_type"].value
             accelerator.init_trackers("huggingface_mc_src", experiment_config)
 
         # Metrics
@@ -604,7 +622,7 @@ def main():
                 active_dataloader = accelerator.skip_first_batches(train_dataloader, resume_step)
             else:
                 active_dataloader = train_dataloader
-            for step, batch in enumerate(active_dataloader):
+            for _ , batch in enumerate(active_dataloader):
                 with accelerator.accumulate(model):
                     outputs = model(**batch)
                     loss = outputs.loss
@@ -619,10 +637,10 @@ def main():
                 # Check if the accelerator has performed an optimization-step
                 if accelerator.sync_gradients:
                     progress_bar.update(1)
-                    completed_step += 1
+                    completed_steps += 1
 
                 if isinstance(checkpointing_steps, int):
-                    if completed_step % checkpointing_steps == 0 and accelerator.sync_gradients:
+                    if completed_steps % checkpointing_steps == 0 and accelerator.sync_gradients:
                         output_dir = f"step_{completed_steps}"
                         if args.output_dir is not None:
                             output_dir = os.path.join(args.output_dir, output_dir)
@@ -638,9 +656,10 @@ def main():
 
                 predictions = outputs.logits.argmax(dim=-1)
                 predictions, references = accelerator.gather_for_metrics((predictions, batch["labels"]))
+                # ipdb.set_trace()
                 metric.add_batch(
                     predictions = predictions,
-                    reference = references
+                    references = references
                 )
 
             eval_metric = metric.compute()
@@ -704,9 +723,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
