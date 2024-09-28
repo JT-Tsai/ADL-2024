@@ -285,7 +285,7 @@ def main():
 
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your Python/PyTorch versions.
-    send_example_telemetry("huggingface_mc_src", args)
+    send_example_telemetry("multi_choice", args)
 
     # Initialize the accelerator. We will let the accelerator handle device placement for us in this example.
     # If we're using tracking, we also need to initialize it here and it will by default pick up all supported trackers
@@ -426,13 +426,13 @@ def main():
         # First we tokenize all the texts.
         padding = "max_length" if args.pad_to_max_length else False
 
-        """################################################################################"""
+        """data format modify"""
 
         def preprocess_function(examples):
             # Questions
             first_sentences = [[question]* 4 for question in examples["question"]]
             # Answers_id
-            paragraphs_ids = [[ids for ids in example] for example in examples["paragraphs"]]
+            paragraphs_ids = [[ids for ids in para] for para in examples["paragraphs"]]
             # context
             second_sentences = [
                 [context[id] for id in ids] for ids in paragraphs_ids
@@ -561,7 +561,7 @@ def main():
             experiment_config = vars(args)
             # TensorBoard cannot log Enums, need the raw value
             experiment_config["lr_scheduler_type"] = experiment_config["lr_scheduler_type"].value
-            accelerator.init_trackers("huggingface_mc_src", experiment_config)
+            accelerator.init_trackers("multi_choice", experiment_config)
 
         # Metrics
         metric = evaluate.load("accuracy")
@@ -613,6 +613,12 @@ def main():
         # update the progress_bar if load from checkpoint
         progress_bar.update(completed_steps)
 
+
+        train_loss = []
+        valid_loss = []
+        acc = []
+
+        # model training
         for epoch in range(starting_epoch, args.num_train_epochs):
             model.train()
             if args.with_tracking:
@@ -650,7 +656,7 @@ def main():
                     break
 
             model.eval()
-            for step, batch in enumerate(eval_dataloader):
+            for _, batch in enumerate(eval_dataloader):
                 with torch.no_grad():
                     output = model(**batch)
 
@@ -675,6 +681,10 @@ def main():
                     },
                     step = completed_steps,
                 )
+
+            train_loss.append(total_loss.item() / len(train_dataloader))
+            valid_loss.append(valid_loss.item() / len(eval_dataloader))
+            acc.append(eval_metric['accuracy'])
 
             if args.push_to_hub and epoch < args.num_train_epoch - 1:
                 accelerator.wait_for_everyone()
@@ -720,6 +730,10 @@ def main():
                 all_result = {f"eval_{k}": v for k, v in eval_metric.items()}
                 with open(os.path.join(args.output_dir, "all_result.json"), "w") as f:
                     json.dump(all_result, f)
+
+                metrics = {"train_loss": train_loss, "valid_loss": valid_loss, "acc": acc}
+                with open(os.path.join(args.output_dir, "metrics.json"), "w") as file:
+                    json.dump(metrics, file)
 
 if __name__ == "__main__":
     main()
