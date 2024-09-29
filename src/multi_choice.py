@@ -415,7 +415,9 @@ def main():
         else:
             logger.info("Training new model from scratch")
             model = AutoModelForMultipleChoice.from_config(config, trust_remote_code=args.trust_remote_code)
-
+            # magic word    
+            for param in model.parameters(): param.data = param.data.contiguous()
+        
         # We resize the embeddings only when necessary to avoid index errors. If you are creating a model from scratch
         # on a small vocab and want a smaller embedding size, remove this test.
         embedding_size = model.get_input_embeddings().weight.shape[0]
@@ -438,7 +440,7 @@ def main():
                 [context[id] for id in ids] for ids in paragraphs_ids
             ]
             # the index of correct answer
-            labels = [paragraphs_ids[i].index(examples['relevant'][i]) for i in range(len(examples["id"]))]
+            labels = [paragraphs_ids[i].index(examples['relevant'][i]) for i in range(len(examples["relevant"]))]
 
             # ipdb.set_trace()
 
@@ -623,6 +625,7 @@ def main():
             model.train()
             if args.with_tracking:
                 total_loss = 0
+                eval_loss = 0
             if args.resume_from_checkpoint and epoch == starting_epoch and resume_step is not None:
                 # We skip the first `n` batches in the dataloader when resuming fron a checkpoint
                 active_dataloader = accelerator.skip_first_batches(train_dataloader, resume_step)
@@ -658,8 +661,9 @@ def main():
             model.eval()
             for _, batch in enumerate(eval_dataloader):
                 with torch.no_grad():
-                    output = model(**batch)
-
+                    outputs = model(**batch)
+                # ipdb.set_trace()
+                eval_loss += outputs.loss.float()
                 predictions = outputs.logits.argmax(dim=-1)
                 predictions, references = accelerator.gather_for_metrics((predictions, batch["labels"]))
                 # ipdb.set_trace()
@@ -683,7 +687,7 @@ def main():
                 )
 
             train_loss.append(total_loss.item() / len(train_dataloader))
-            valid_loss.append(valid_loss.item() / len(eval_dataloader))
+            valid_loss.append(eval_loss.item() / len(eval_dataloader))
             acc.append(eval_metric['accuracy'])
 
             if args.push_to_hub and epoch < args.num_train_epoch - 1:
@@ -713,6 +717,8 @@ def main():
 
         if args.output_dir is not None:
             accelerator.wait_for_everyone()
+            for param in model.parameters():
+                param.data = param.data.contiguous()
             unwrapped_model = accelerator.unwrap_model(model)
             unwrapped_model.save_pretrained(
                 args.output_dir, is_main_process=accelerator.is_main_process, save_fucntion=accelerator.save
