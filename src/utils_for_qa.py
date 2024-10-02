@@ -27,6 +27,28 @@ from tqdm.auto import tqdm
 
 logger = logging.getLogger(__name__)
 
+def save_prefixed_metrics(results, output_dir, file_name: str = "all_result.json", metric_key_prefix: str = "eval"):
+    """
+    Save results while prefixing metric names.
+
+    Args:
+        results: (:obj:`dict`):
+            A dictionary of results.
+        output_dir: (:obj:`str`):
+            An output directory.
+        file_name: (:obj:`str`, `optional`, defaults to :obj:`all_results.json`):
+            An output file name.
+        metric_key_prefix: (:obj:`str`, `optional`, defaults to :obj:`eval`):
+            A metric name prefix.
+    """
+    # Prefix all keys with metric_key_prefix + '_'
+    for key in list(results.keys()):
+        if not key.startswith(f"{metric_key_prefix}_"):
+            results[f"{metric_key_prefix}_{key}"] = results.pop(key)
+    
+    with open(os.path.join(output_dir, file_name), 'w') as f:
+        json.dump(results, f, indent=4)
+
 def postprocess_qa_predictions(
         examples,
         features,
@@ -218,11 +240,11 @@ def postprocess_qa_predictions(
             else:
                 all_predictions[example["id"]] = best_non_null_pred["text"]
         
-            # Make `predictions` JSON-serializable by casting np.float back to float
-            all_nbest_json[example["id"]] = [
-                {k: (float(v) if isinstance(v, (np.float16, np.float32, np.float64)) else v) for k, v in pred.items()}
-                for pred in predictions
-            ]
+        # Make `predictions` JSON-serializable by casting np.float back to float
+        all_nbest_json[example["id"]] = [
+            {k: (float(v) if isinstance(v, (np.float16, np.float32, np.float64)) else v) for k, v in pred.items()}
+            for pred in predictions
+        ]
 
     # If we have an output_dir, let's save all those dicts.
     if output_dir is not None:
@@ -230,7 +252,7 @@ def postprocess_qa_predictions(
             raise EnvironmentError(f"{output_dir} if not a directory.")
         
         prediction_file = os.path.join(
-            output_dir, "predictions.json" if prefix is None else f"{prefix}_predictioins.json"
+            output_dir, "predictions.json" if prefix is None else f"{prefix}_predictions.json"
         )
         nbest_file = os.path.join(
             output_dir, "nbest_predictions.json" if prefix is None else f"{prefix}_nbest_predictions.json"
@@ -242,14 +264,48 @@ def postprocess_qa_predictions(
         
         logger.info(f"Saving predictions to {prediction_file}")
         with open(prediction_file, "w") as writer:
-            writer.write(json.dumps(all_predictions, indent=4) + "\n")
+            writer.write(json.dumps(all_predictions, indent=4, ensure_ascii=False) + "\n")
         logger.info(f"Saving nbest_preds to {nbest_file}")
         with open(nbest_file, "w") as writer:
-            writer.write(json.dumps(all_nbest_json, indent=4) + '\n')
+            writer.write(json.dumps(all_nbest_json, indent=4, ensure_ascii=False) + '\n')
         if version_2_with_negative:
             logger.info(f"Saving null_odds to {null_odds_file}.")
             with open(null_odds_file, "w") as writer:
                 writer.write(json.dumps(scores_diff_json, indent=4) + "\n")
     
     return all_predictions
+
+# WTF
+# Create and fill numpy array of size len_of_validation_data * max_length_of_output_tensor
+def create_and_fill_np_array(start_or_end_logits, dataset, max_len):
+    """
+    Create and fill numpy array of size len_of_validation_data * max_length_of_output_tensor
+
+    Args:
+        start_or_end_logits(:obj:`tensor`):
+            This is the output predictions of the model. We can only enter either start or end logits.
+        eval_dataset: Evaluation dataset
+        max_len(:obj:`int`):
+            The maximum length of the output tensor. ( See the model.eval() part for more details )
+    """
+
+    step = 0
+    # create a numpy array and fill it with -100
+    logit_concat = np.full((len(dataset), max_len), -100, dtype=np.float64)
+    # Now since we have create an array now we will populate it with the output gathered using accelerator.gather_for_metrics
+    for i, output_logit in enumerate(start_or_end_logits):
+        # we have to fill it such that we have to take the whole tensor and replace it on the newly created array
+        # And after every iteration we have to change the step
+
+        batch_size = output_logit.shape[0]
+        cols = output_logit.shape[1]
+
+        if step + batch_size < len(dataset):
+            logit_concat[step: step + batch_size, :cols] = output_logit
+        else:
+            logit_concat[step:, :cols] = output_logit[: len(dataset) - step]
+
+        step += batch_size
+
+    return logit_concat
             

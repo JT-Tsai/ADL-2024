@@ -18,7 +18,7 @@ Fine-tuning a 🤗 Transformers model for question answering using 🤗 Accelera
 """
 # You can also adapt this script on your own question answering task. Pointers for this are left as comments.
 
-import argparse
+# import argparse
 import json
 import logging
 import math
@@ -37,7 +37,8 @@ from datasets import load_dataset
 from huggingface_hub import HfApi
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
-from utils_qa import postprocess_qa_predictions
+
+from utils_for_qa import *
 
 import transformers
 from transformers import (
@@ -55,299 +56,22 @@ from transformers import (
 from transformers.utils import check_min_version, send_example_telemetry
 from transformers.utils.versions import require_version
 
-import ipdb
+from parse_args import parse_args
+# import ipdb
 
 
 # check_min_version("4.45.0.dev0")
-
 # require_version("datasets>=1.8.0", "To fix: pip install -r examples/pytorch/question-answering/requirements.txt")
 
 logger = get_logger(__name__)
-# You should update this to your particular problem to have better documentation of `model_type`
-MODEL_CONFIG_CLASSES = list(MODEL_MAPPING.keys())
-MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
-
-def save_prefixed_metrics(results, output_dir, file_name: str = "all_result.json", metric_key_prefix: str = "eval"):
-    """
-    Save results while prefixing metric names.
-
-    Args:
-        results: (:obj:`dict`):
-            A dictionary of results.
-        output_dir: (:obj:`str`):
-            An output directory.
-        file_name: (:obj:`str`, `optional`, defaults to :obj:`all_results.json`):
-            An output file name.
-        metric_key_prefix: (:obj:`str`, `optional`, defaults to :obj:`eval`):
-            A metric name prefix.
-    """
-    # Prefix all keys with metric_key_prefix + '_'
-    for key in list(results.keys()):
-        if not key.startswith(f"{metric_key_prefix}_"):
-            results[f"{metric_key_prefix}_{key}"] = results.pop(key)
-    
-    with open(os.path.join(output_dir, file_name), 'w') as f:
-        json.dump(results, f, index=4)
-        
-
-def parse_args():
-    parser = argparse.ArgumentParser(description="Finetune a transformers model on a Question Answering task")
-    parser.add_argument(
-        "--dataset_name",
-        type=str,
-        default=None,
-        help="The name of the dateset to use (via the datasets library).",
-    )
-    parser.add_argument(
-        "--dataset_config_name", 
-        type=str,
-        default=None,
-        help="The configuration name of the dataset to use (via the datasets library)."
-    )
-    parser.add_argument(
-        "--train_file", type=str, default=None, help="A csv or a json file containing the training data."
-    )
-    parser.add_argument(
-        "--preprocessing_num_workers", type=int, default=1, help = "A csv or a json file containing the training data."
-    )
-    parser.add_argument("--do_predict", action="store_true", help = "To do prediction on the question answering model")
-    parser.add_argument(
-        "--validation_file", type=str, default=None, help = "A csv or a json file containing the validation data."
-    )
-    parser.add_argument(
-        "--test_file", type=str, default=None, help = "A csv or a json file containing the test data."
-    )
-    parser.add_argument(
-        "--max_seq_length",
-        type=int,
-        default=384,
-        help=(
-            "The maximum total input sequence after tokenization. Sequences longer than this will be truncated,"
-            " sequences shorter will be padding if `--pad_to_max_length` is passed."
-        ),
-    )
-    parser.add_argument(
-        "--pad_to_max_length",
-        action="store_true",
-        help="If passed, pad all samples to `max_seq_length`. Otherwise, dynamic padding is used.",
-    )
-    parser.add_argument(
-        "--model_name_or_path",
-        type=str,
-        help="Path to pretrained model or model indentifier from huggingface.co/models.",
-        required=False,
-    )
-    parser.add_argument(
-        "--config_name",
-        type=str,
-        default=None,
-        help="Pretrained config name or path if not the same as model_name",
-    )
-    parser.add_argument(
-        "--tokenizer_name",
-        type=str,
-        default=None,
-        help="Pretrained tokenizer name or path if not the same as model.",
-    )
-    parser.add_argument(
-        "--use_slow_tokenizer",
-        action = "store_true",
-        help="If passed, will use a slow tokenizer (not backed by the 🤗 Tokenizers library).",
-    )
-    parser.add_argument(
-        "--per_device_train_batch_size",
-        type=int,
-        default=8,
-        help="Batch size (per device) for the training dataloader.",
-    )
-    parser.add_argument(
-        "--per_device_eval_batch_size",
-        type=int,
-        default=8,
-        help="Batch size (per device) for the evaluation dataloader."
-    )
-    parser.add_argument(
-        "--learning_rate",
-        type=float,
-        default=5e-5,
-        help="Initial learning rate (after the potential warmup period) to use.",
-    )
-    parser.add_argument("--weight_decay", type=float, default=0.0, help="Weight decay to use")
-    parser.add_argument("--num_train_epochs", type=int, default=3, help="Total number of training epochs to perform.")
-    parser.add_argument(
-        "--max_train_steps",
-        type=int,
-        default=None,
-        help="Total number of training steps to perform. If provided, overrides num_train_epochs.", 
-    )
-    parser.add_argument(
-        "--gradient_accumulation_steps",
-        type=int,
-        default=1,
-        help="Number of updates to accumulate before performing a backward/update pass.",
-    )
-    parser.add_argument(
-        "--lr_scheduler_type",
-        type=SchedulerType,
-        default="linear",
-        help="The scheduler type to use.",
-        choices=["linear", "cosine", "consine_with_restarts", "polynomial", "constant", "constant_with_warmup"],
-    )
-    parser.add_argument(
-        "--num_warmup_steps", type=int, default=0, help="Number of steps for the warmup in the lr scheduler."
-    )
-    parser.add_argument("--output_dir", type=str, default=None, help="Where to store the final model.")
-    parser.add_argument("-seed", type=int, default=None, help="A seed for reproducible training.")
-    parser.add_argument(
-        "--doc_stride",
-        type=int,
-        default=128,
-        help="When splitting up a long document into chunk how much stride to take between chunks."
-    )
-    parser.add_argument(
-        "--n_best_size",
-        type=int,
-        default=20,
-        help="The total number of n-best prediction to generate when looking for an answer.",
-    )
-    parser.add_argument(
-        "--null_score_diff_threshold",
-        type=float,
-        default=0.0,
-        help=(
-            "The threshold used to select the null answer: if the best answer has a score that is less than"
-            "the score of the null answer this threshold, the null answer is selected for this example."
-            "Only useful when `version_2_with_negative=True`."
-        ),
-    )
-    parser.add_argument(
-        "--version_2_with_negative",
-        action = "store_true",
-        help="If true, some of the examples do not have an answer.",
-    )
-    parser.add_argument(
-        "--max_answer_length",
-        type=int, 
-        default=30,
-        help=(
-            "The maximun length of an answer that can be generated. This is needed because the start "
-            "and end predictions are not conditioned on one another."
-        ),
-    )
-    parser.add_argument(
-        "--max_train_samples",
-        type=int,
-        default=None,
-        help=(
-            "For debugging purposes or quicker training, truncate the number of training examples to this"
-            "value if set"
-        )
-    )
-    parser.add_argument(
-        "--max_eval_samples",
-        type=int,
-        default=None,
-        help=(
-            "For debugging purposes or quicker training, truncate the number of training examples to this"
-            "value if set"
-        ),
-    )
-    parser.add_argument(
-        "--overwrite_cache", action="store_true", help="Overwrite the cached training and evaluation sets"
-    )
-    parser.add_argument(
-        "--max_predict_samples",
-        type=int,
-        default=None,
-        help="For debugging purpose or quicker trainning, truncate the number of prediction examples to this",
-    )
-    parser.add_argument(
-        "--model_type",
-        type=str,
-        default=None,
-        help="Model type to use if training from scratch.",
-        choices=MODEL_TYPES,
-    )
-    parser.add_argument("--push_to_hub", action="store_true", help="Whether or not to push the Hub.")
-    parser.add_argument(
-        "--hub_model_id", type=str, help="The name of the repository to keep in sync with the local `output_dir`."
-    )
-    parser.add_argument("--hub_token", type=str, help="The token to use to pusu to the Model Hub.")
-    parser.add_argument(
-        "--trust_remote_code",
-        action="store_true",
-        help=(
-            "Whether to trust the execution of code from datasets/models defined on the Hub."
-            " This option should only be set to `True` for repositories you trust and in which you have read the"
-            " code, as it will execute code present on the Hub on your local machine."
-        ),
-    )
-    parser.add_argument(
-        "--checkpointing_steps",
-        type=str,
-        default=None,
-        help="Whether the various states should be saved at the end of every n steps, or `epoch` for each epoch"
-    )
-    parser.add_argument(
-        "--resume_from_checkpoint",
-        type=str,
-        default=None,
-        help="If the training shold continue from a checkpoint folder."
-    )
-    parser.add_argument(
-        "--with_tracking",
-        action="store_true",
-        help="Whether to enable experiment trackers for logging."
-    )
-    parser.add_argument(
-        "--report_to",
-        type=str,
-        default="all",
-        help=(
-            'The integration to report the results and logs to. Supported platforms are `"tensorboard"`,'
-            ' `"wandb"`, `"comet_ml"` and `"clearml"`. Use `"all"` (default) to report to all integrations. '
-            "Only applicable when `--with_tracking` is passed."
-        ),
-    )
-    parser.add_argument(
-        "--context_file", type=str, default=None, help="A csv or a json file containing the context."
-    )
-
-    args = parser.parse_args()
-
-    # Sanity checks
-    if (
-        args.dataset_name is None
-        and args.train_file is None
-        and args.validation is None
-        # and args.test_file is None
-        and args.context_file is None
-    ):
-        raise ValueError("Need either a dataset name or a training/validation/test file.")
-    else:
-        if args.train_file is not None:
-            extension = args.train_file.split('.')[-1]
-            assert extension in ['csv', 'json'], "`train_file` should be a csv or a json file."
-        if args.validation_file is not None:
-            extension = args.validation_file.split('.')[-1]
-            assert extension in ['csv', 'json'], "`validation_file` should be a csv or a json file."
-        # if args.test_file is not None:
-        #     extension = args.test_file.split('.')[-1]
-        #     assert extension in ['csv', 'json'], "`test_file` should be a csv or a json file."
-        if args.context_file is not None:
-            extension = args.context_file.split('.')[-1]
-            assert extension in ['csv', 'json'], "`context_file` should be a csv or a json file"
-    if args.push_to_hub:
-        assert args.output_dir is not None, "Need and `output_dir` to create a repo when `--push_to_hub` is passed."
-
-    return args
 
 def main():
     args = parse_args()
     # ipdb.set_trace()
+
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as argument alsong with your Python/Pytorch versions.
-    send_example_telemetry("qa_src", args)
+    send_example_telemetry("question_answering", args)
 
     # Initialize the accelerator. We will let the accelerator handle device placement for us in this example.
     # If we're using tracking, we also need to initialize it here and it will by default pick up all supported trackers
@@ -597,7 +321,7 @@ def main():
     if "train" not in raw_datasets:
         raise ValueError("--do_train requires a train dataset")
     train_dataset = raw_datasets["train"]
-    if args.max_train_samples is not None:
+    if args.debug:
         # We will select sample from whole data if argument is specified
         train_dataset = train_dataset.select(range(args.max_train_samples))
 
@@ -611,7 +335,7 @@ def main():
             load_from_cache_file = not args.overwrite_cache,
             desc = "Running tokenizer on train dataset",
         )
-        if args.max_train_samples is not None:
+        if args.debug:
             # Number of samples might increase during Feature Creation, We select only specified max samples
             train_dataset = train_dataset.select(range(args.max_train_samples))
         
@@ -661,13 +385,13 @@ def main():
                 (o if sequence_ids[k] == context_index else None)
                 for k, o in enumerate(tokenized_examples["offset_mapping"][i])
             ]
-            
+        # tokenizer_examples have "input_ids", "attention_mask", "example_id", "offset_mapping" keys
         return tokenized_examples
     
     if "validation" not in raw_datasets:
         raise ValueError("--do_eval requires a validation dataset")
     eval_examples = raw_datasets["validation"]
-    if args.max_eval_samples is not None:
+    if args.debug:
         # We will select sample from whole data
         eval_examples = eval_examples.select(range(args.max_eval_samples))
 
@@ -681,8 +405,8 @@ def main():
             load_from_cache_file = not args.overwrite_cache,
             desc="Running tokenizer on validation dataset",
         )
-
-    if args.max_eval_samples is not None:
+        # ipdb.set_trace()
+    if args.debug:
         # During Feature creation dataset might increase, we will select required samples again
         eval_dataset = eval_dataset.select(range(args.max_eval_samples))
 
@@ -774,49 +498,15 @@ def main():
         """
             format like:
             predictions = [{'prediction_text': '1999', 'id': '56e10a3be3433e1400422b22', 'no_answer_probability': 0.}]
-            references = [{'answers': {'answer_start': [97], 'text': ['1976']}, 'id': '56e10a3be3433e1400422b22'}]
+            references = [{'answers': {'answer_start': 97, 'text': '1976'}, 'id': '56e10a3be3433e1400422b22'}]
         """
-        answers = [{"text": [ex["answer"]["text"]], "answer_start": [ex["answer"]["start"]]} for ex in examples]
+        answers = [{"answer_start": ex["answer"]["start"], "text": ex["answer"]["text"]} for ex in examples]
         references = [{"id": ex["id"], "answers": answers} for ex in examples]
         
         return EvalPrediction(predictions=formatted_predictions, label_ids=references)
     
     metric = evaluate.load("squad_v2" if args.version_2_with_negative else "squad")
 
-    # WTF
-    # Create and fill numpy array of size len_of_validation_data * max_length_of_output_tensor
-    def create_and_fill_np_array(start_or_end_logits, dataset, max_len):
-        """
-        Create and fill numpy array of size len_of_validation_data * max_length_of_output_tensor
-
-        Args:
-            start_or_end_logits(:obj:`tensor`):
-                This is the output predictions of the model. We can only enter either start or end logits.
-            eval_dataset: Evaluation dataset
-            max_len(:obj:`int`):
-                The maximum length of the output tensor. ( See the model.eval() part for more details )
-        """
-
-        step = 0
-        # create a numpy array and fill it with -100
-        logit_concat = np.full((len(dataset), max_len), -100, dtype=np.float64)
-        # Now since we have create an array now we will populate it with the outupt gathered using accelerator.gather_for_metrics
-        for i, output_logit in enumerate(start_or_end_logits):
-            # we have to fill it such that we have to take the whle tensor and replace it one the newly created array
-            # And after every iteration we have to change the step
-
-            batch_size = output_logit.shape[0]
-            cols = output_logit.shape[1]
-
-            if step + batch_size < len(dataset):
-                logit_concat[step: step + batch_size, :cols] = output_logit
-            else:
-                logit_concat[step:, :cols] = output_logit[: len(dataset) - step]
-
-            step += batch_size
-
-        return logit_concat
-    
     # Optimizer
     # split weights in two groups, one with weight decay and the other not.
     no_decay = ["bias", "LayerNorm.weight"]
@@ -871,7 +561,7 @@ def main():
         experiment_config = vars(args)
         # TensorBoard cannot log Enums, need the raw value
         experiment_config["lr_scheduler_type"] = experiment_config["lr_scheduler_type"].value
-        accelerator.init_trackers("qa_src", experiment_config)
+        accelerator.init_trackers("question_answering", experiment_config)
     
     # Train!
     total_batch_size = args.per_device_train_batch_size * accelerator.num_processes * args.gradient_accumulation_steps
@@ -921,10 +611,15 @@ def main():
     # update the progress_bar if load from checkpoint 
     progress_bar.update(completed_steps)
 
+    train_loss = []
+    valid_loss = []
+    exact_match = []
+
     for epoch in range(starting_epoch, args.num_train_epochs):
         model.train()
         if args.with_tracking:
             total_loss = 0
+            eval_loss = 0
         if args.resume_from_checkpoint and epoch == starting_epoch and resume_step is not None:
             # We skip the first `n` batches in the dataloader when resuming from checkpoint
             active_dataloader = accelerator.skip_first_batches(train_dataloader, resume_step)
@@ -980,11 +675,6 @@ def main():
                         token=args.hub_token,
                     )
 
-    # Evaluation
-    # logger.info("***** Running Evaluation *****")
-    # logger.info(f"  Num examples = {len(eval_dataset)}")
-    # logger.info(f"  Batch size = {args.per_device_eval_batch_size}")
-
         all_start_logits = []
         all_end_logits = []
 
@@ -996,6 +686,9 @@ def main():
                 outputs = model(**batch)
                 start_logits = outputs.start_logits
                 end_logits = outputs.end_logits
+
+                if args.with_tracking:
+                    eval_loss += loss.float()
 
                 if not args.pad_to_max_length: # necessary to pad predictions and labels foor begin gathered
                     start_logits = accelerator.pad_across_precesses(start_logits, dim=1, pad_index=-100)
@@ -1016,9 +709,13 @@ def main():
 
         outputs_numpy = (start_logits_concat, end_logits_concat)
         prediction = post_processing_function(eval_examples, eval_dataset, outputs_numpy)
-        ipdb.set_trace()
+        # ipdb.set_trace()
         eval_metric = metric.compute(predictions=prediction.predictions, references=prediction.label_ids)
         logger.info(f"Evaluation metrics: {eval_metric}")
+
+        train_loss.append(total_loss.item() / len(train_dataloader))
+        valid_loss.append(eval_loss.item() / len(eval_dataloader))
+        exact_match.append(eval_metric['exact_match'])
 
     # Prediction
     if args.do_predict:
@@ -1072,6 +769,10 @@ def main():
 
     if args.output_dir is not None:
         accelerator.wait_for_everyone()
+        # ipdb.set_trace()
+        # avoid model state_dict not memory contiguous
+        for param in model.parameters():
+            param.data = param.data.contiguous()
         unwrapped_model = accelerator.unwrap_model(model)
         unwrapped_model.save_pretrained(
             args.output_dir, is_main_process=accelerator.is_main_process, save_function=accelerator.save
@@ -1088,7 +789,9 @@ def main():
                 )
             logger.info(json.dumps(eval_metric, indent=4))
             save_prefixed_metrics(eval_metric, args.output_dir)
-
+        metrics = {"train_loss": train_loss, "valid_loss": valid_loss, "EM": exact_match}
+        with open(os.path.join(args.output_dir, "metrics.json"), 'w') as file:
+            json.dump(metrics, file)
 
 if __name__ == "__main__":
     main()

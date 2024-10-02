@@ -18,7 +18,7 @@ Fine-tuning a 🤗 Transformers model on multiple choice relying on the accelera
 """
 # You can also adapt this script on your own multiple choice task. Pointers for this are left as comments.
 
-import argparse
+# import argparse
 import json
 import logging
 import math
@@ -27,7 +27,7 @@ import random
 from dataclasses import dataclass
 from itertools import chain
 from pathlib import Path
-from typing import Optional, Union
+# from typing import Optional, Union
 
 import datasets
 import evaluate
@@ -54,231 +54,11 @@ from transformers import (
 )
 
 from transformers.utils import PaddingStrategy, check_min_version, send_example_telemetry
-
-import ipdb
+from parse_args import parse_args
+from utils_for_mc import DataCollatorForMultipleChoice
+# import ipdb
 
 logger = get_logger(__name__)
-# You should update this to your particular problem to have better documentation of `model_type`
-MODEL_CONFIG_CLASSES = list(MODEL_MAPPING.keys())
-MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
-
-# ipdb.set_trace()
-
-def parse_args():
-    parser = argparse.ArgumentParser(description="Finetune a transformers model on a multiple choice task")
-    parser.add_argument(
-        "--dataset_name",
-        type=str,
-        default=None,
-        help="The name of the dataset to use (via the datasets library)",
-    )
-    parser.add_argument(
-        "--dataset_config_name",
-        type=str,
-        default=None,
-        help="The configuration name of the datast to use (via the datasets library)",
-    )
-    parser.add_argument(
-        "--train_file", type=str, default=None, help="A csv or a json file containing the training data.",
-    )
-    parser.add_argument(
-        "--validation_file", type=str, default=None, help="A csv or a json contaiining the validation data.",
-    )
-    parser.add_argument(
-        "--context_file", type=str, default=None, help="A csv or a json contaiining the context.",
-    )
-    parser.add_argument(
-        "--max_seq_length",
-        type=int,
-        default=128,
-        help=(
-            "The maximum tootal input sequence length after tokenization. Sequences longer than this will be truncated,"
-            " Sequences shorter will be padding if `--pad_to_max_length` is passed."
-        ),
-    )
-    parser.add_argument(
-        "--pad_to_max_length",
-        action="store_true",
-        help="If passed, pad all samples to `max_length`. Otherwise, dynamic padding is used.",
-    )
-    parser.add_argument(
-        "--model_name_or_path",
-        type=str,
-        help="Path to pretrained model or model identifier from huggingface.co/models.",
-        required=False,
-    )
-    parser.add_argument(
-        "--config_name",
-        type=str,
-        default=None,
-        help="Pretrained config name or path if not the same as model_name.",
-    )
-    parser.add_argument(
-        "--tokenizer_name",
-        type=str,
-        default=None,
-        help="Pretrained tokenizer name or path if not the same as model_name.",
-    )
-    parser.add_argument(
-        "--use_slow_tokenizer",
-        action="store_true",
-        help="If padded, will use a slow tokenizer (not backed by the 🤗 Tokenizers library).",
-    )
-    parser.add_argument(
-        "--per_device_train_batch_size",
-        type=int,
-        default=8,
-        help="Batch size (per device) for the training dataloader.",
-    )
-    parser.add_argument(
-        "--learning_rate",
-        type=float,
-        default=5e-5,
-        help="Initial learning rate (after the potential warmup period) to use.",
-    )
-    parser.add_argument("--weight_decay", type=float, default=0.0, help="Weight decay to use.")
-    parser.add_argument("--num_train_epochs", type=int, default=3, help="Total number of trainning epochs to perform.")
-    parser.add_argument(
-        "--max_train_steps",
-        type=int,
-        default=None,
-        help="Total number of trainning steps to perform. If provided, overrides num_train_epochs.",
-    )
-    parser.add_argument(
-        "--gradient_accumulation_steps",
-        type=int,
-        default=1,
-        help="Number of updates steps to accumulate before performing a backward/update pass.",
-    )
-    parser.add_argument(
-        "--lr_scheduler_type",
-        type=SchedulerType,
-        default="linear",
-        help="The scheduler type to use.",
-        choices=["linear", "cosine", "cosine_with_restarts", "polynomial", "constant", "constant_with_warmup"],
-    )
-    parser.add_argument(
-        "--num_warmup_steps", type=int, default=0, help="Number of steps for the warmup in the lr scheduler."
-    )
-    parser.add_argument("--output_dir", type=str, default=None, help="Where to store the final model.")
-    parser.add_argument("-seed", type=int, default=None, help="A seed for reproducible training.")
-    parser.add_argument(
-        "--model_type",
-        type=str,
-        default=None,
-        help="Model type to use if training from scratch.",
-        choices=MODEL_TYPES,
-    )
-    parser.add_argument(
-        "--debug", 
-        action="store_true",
-        help="Activate debug mode and run training only with a subset of data.",
-    )
-    parser.add_argument("--push_to_hub", action="store_true", help="Wheter or not to push the model to the Hub.")
-    parser.add_argument(
-        "--hub_model_id", type=int, help="The name of the repository to keep in sync with the local `output_dir`."
-    )
-    parser.add_argument("--hub_token", type=str, help="The token to use to push to the Model Hub.")
-    parser.add_argument(
-        "--trust_remote_code",
-        action="store_true",
-        help=(
-            "Whether to trust the execution of code from datasets/models defined on the Hub."
-            " This option should only be set to `True` for repositories you trust and in which you have read the"
-            " code, as it will execute code present on the Hub on your local machine.",
-        )
-    )
-    parser.add_argument(
-        "--checkpointing_steps",
-        type=str,
-        default=None, 
-        help="Whether the various states should be saved at the end of every n steps, or 'epoch' for each epoch.",
-    )
-    parser.add_argument(
-        "--resume_from_checkpoint",
-        type=str,
-        default=None,
-        help="If the training should continue from a checkpoint folder.",
-    )
-    parser.add_argument(
-        "--with_tracking",
-        action="store_true",
-        help="Whether to enable experiment trackers for logging.",
-    )
-    parser.add_argument(
-        "--report_to",
-        type=str,
-        default="all",
-        help=(
-            'The intergration to report the result and logs to. Supported platforms are `"tensorboard"`,'
-            ' `"wandb"`, `"comet_ml"` and `"clearml"`. Use `"all"` (default) to report to all integrations. '
-            "Only applicable when `--with_tracking` is passed."
-        )
-    )
-
-    args = parser.parse_args()
-
-    if args.push_to_hub:
-        assert args.output_dir is not None, "Need an `output_dir` to create a repo when `--push_to_hub` is passed."
-
-    return args
-
-@dataclass
-class DataCollatorForMultipleChoice:
-    """
-    Data collator that will dynamically pad the inputs for multiple choice received.
-
-    Args:
-        tokenizer ([`PreTrainedTokenizer`] or [`PreTrainedTokenizerFast`]):
-            The tokenizer used for encoding the data.
-        padding (`bool`, `str` or [`~utils.PaddingStrategy`], *optional*, defaults to `True`):
-            Select a strategy to pad the returned sequences (according to the model's padding side and padding index)
-            among:
-
-            - `True` or `'longest'`: Pad to the longest sequence in the batch (or no padding if only a single sequence
-              if provided).
-            - `'max_length'`: Pad to a maximum length specified with the argument `max_length` or to the maximum
-              acceptable input length for the model if that argument is not provided.
-            - `False` or `'do_not_pad'` (default): No padding (i.e., can output a batch with sequences of different
-              lengths).
-        max_length (`int`, *optional*):
-            Maximum length of the returned list and optionally padding length (see above).
-        pad_to_multiple_of (`int`, *optional*):
-            If set will pad the sequence to a multiple of the provided value.
-
-            This is especially useful to enable the use of Tensor Cores on NVIDIA hardware with compute capability >=
-            7.5 (Volta).
-    """
-
-    tokenizer: PreTrainedTokenizerBase
-    padding: Union[bool, str, PaddingStrategy] = True
-    max_length: Optional[int] = None
-    pad_to_multiple_of: Optional[int] = None
-
-    def __call__(self, features):
-        label_name = "label" if "label" in features[0].keys() else "labels"
-        labels = [feature.pop(label_name) for feature in features]
-        batch_size = len(features)
-        num_choices = len(features[0]["input_ids"])
-        flattened_feature = [
-            [{k: v[i] for k, v in feature.items() for i in range(num_choices)}] for feature in features
-        ]
-        flattened_feature = list(chain(*flattened_feature))
-        
-        # padding 
-        batch = self.tokenizer.pad(
-            flattened_feature,
-            padding=self.padding,
-            max_length=self.max_length,
-            pad_to_multiple_of=self.pad_to_multiple_of,
-            return_tensors="pt",
-        )
-
-        # Un-flatten
-        batch = {k: v.view(batch_size, num_choices, -1) for k, v, in batch.items()}
-        # Add back labels
-        batch["labels"] = torch.tensor(labels, dtype=torch.int64)
-        return batch
 
 def main():
     args = parse_args()
@@ -383,8 +163,9 @@ def main():
         #
         # In distributed training, the .from_pretrained methods guarantee that only one local process can concurrently
         # download model & vocab.
+        
         if args.config_name:
-            config = AutoConfig.from_pretrained(args.model_name_or_path, trust_remote_code=args.trust_remote_code)
+            config = AutoConfig.from_pretrained(args.config_name, trust_remote_code=args.trust_remote_code)
         elif args.model_name_or_path:
             config = AutoConfig.from_pretrained(args.model_name_or_path, trust_remote_code=args.trust_remote_code)
         else:
@@ -441,39 +222,38 @@ def main():
             ]
             # the index of correct answer
             labels = [paragraphs_ids[i].index(examples['relevant'][i]) for i in range(len(examples["relevant"]))]
-
             # ipdb.set_trace()
 
             # Flatten out
             first_sentences = list(chain(*first_sentences))
             second_sentences = list(chain(*second_sentences))
-
             # ipdb.set_trace()
 
             # Tokenize
             tokenized_example = tokenizer(
-                first_sentences,
-                second_sentences,
+                first_sentences, # [[question, question, question, question], ...]
+                second_sentences, # [[answer_1, answer_2, answer_3, answer_4], ...]
                 max_length=args.max_seq_length,
                 padding=padding,
                 truncation=True,
             )
+            # ipdb.set_trace()
+
             # Un-flatten
             # k -> input_ids, attention_mask
             tokenized_input = {k: [v[i: i+4] for i in range(0, len(v), 4)] for k, v in tokenized_example.items()}
             tokenized_input["label"] = labels
-
             # ipdb.set_trace()
             
             return tokenized_input
         
         with accelerator.main_process_first():
-            processed_datasets = raw_dataset.map(
+            processed_dataset = raw_dataset.map(
                 preprocess_function, batched=True, remove_columns=raw_dataset["train"].column_names
             )
 
-        train_dataset = processed_datasets["train"]
-        eval_dataset = processed_datasets["validation"]
+        train_dataset = processed_dataset["train"]
+        eval_dataset = processed_dataset["validation"]
 
         # Log a few random samples from the training set
         for index in random.sample(range(len(train_dataset)), 3):
