@@ -47,7 +47,7 @@ essential args
 """
 
 
-def inference():
+def main():
     args = parse_args()
     
     data_files = {}
@@ -169,4 +169,4 @@ def inference():
     print(f"model ouputs is Saved at {inference_path}, process is done")
 
 if __name__ == "__main__":
-    inference()
+    main()
