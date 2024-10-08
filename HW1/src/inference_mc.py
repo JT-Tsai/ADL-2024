@@ -33,7 +33,7 @@ from transformers import (
 from parse_args import parse_args
 from utils_for_mc import DataCollatorForMultipleChoice
 
-import ipdb
+# import ipdb
 
 """
 essential args
