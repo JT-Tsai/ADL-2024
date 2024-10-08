@@ -32,7 +32,7 @@ python src/question_answering.py \
     --context_file data/context.json \
     --with_tracking \
     --dynamic_save \
-    # --dubug \
+    # --debug \
     # --max_train_samples 100 \
     # --max_eval_samples 100 \
 
