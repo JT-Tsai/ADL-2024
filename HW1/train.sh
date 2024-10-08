@@ -4,8 +4,8 @@ python src/multi_choice.py \
     --train_file data/train.json \
     --validation_file data/valid.json \
     --max_seq_length 512 \
-    --padding_to_max_length \
-    --model_name_or_type hfl/chinese-lert-base \
+    --pad_to_max_length \
+    --model_name_or_path hfl/chinese-lert-base \
     --tokenizer_name hfl/chinese-lert-base \
     --per_device_train_batch_size 4 \
     --learning_rate 5e-5 \
@@ -31,7 +31,7 @@ python src/question_answering.py \
     --output_dir output/chinese-lert-large/qa \
     --context_file data/context.json \
     --with_tracking \
-    --dynamic_save \
+    # --dynamic_save \
     # --debug \
     # --max_train_samples 100 \
     # --max_eval_samples 100 \
