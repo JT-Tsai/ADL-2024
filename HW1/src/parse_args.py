@@ -104,6 +104,7 @@ def parse_args():
         "--num_warmup_steps", type=int, default=0, help="Number of steps for the warmup in the lr scheduler."
     )
     parser.add_argument("--output_dir", type=str, default=None, help="Where to store the final model.")
+    parser.add_argument("--result_path", type=str, default=None, help="the path store the final result")
     parser.add_argument("-seed", type=int, default=None, help="A seed for reproducible training.")
     parser.add_argument(
         "--model_type",

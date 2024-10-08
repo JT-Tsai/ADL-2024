@@ -210,9 +210,10 @@ def main():
     })
     # ipdb.set_trace()
     
-    os.makedirs(args.output_dir, exist_ok=True)
-    inference_path = os.path.join(args.output_dir, "result.csv")
-    with open(inference_path, 'w', newline='', encoding='utf-8') as file:
+    # os.makedirs(args.output_dir, exist_ok=True)
+    # inference_path = os.path.join(args.output_dir, "result.csv")
+    os.makedirs(os.path.dirname(args.result_path))
+    with open(args.result_path, 'w', newline='', encoding='utf-8') as file:
         df.to_csv(file, index=False)
 
     print("Inference Done")
