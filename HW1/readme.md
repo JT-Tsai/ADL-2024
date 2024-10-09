@@ -1,4 +1,4 @@
-# ADL_HW1
+# ADL2024_HW1
 Department: NTNU EE
 
 Student ID: 41375007h
