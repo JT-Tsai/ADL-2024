@@ -20,14 +20,14 @@ pip install -r requirements.txt
 
 ## Step to run training
 1. Prepare the training data:
-    - Ensure the following files are placed in the ./data/ folder:
+    - Ensure the following files are placed in the `./data/` folder:
     - `./data/context.json`
     - `./data/train.json`
     - `./data/valid.json`
 
 2. Execute the training script:
     - The training scripts `multi_choice.py` and `question_answering.py` are in `./src` folder.
-    - the training script accepts useful argument such as --debug and --dynamic_save
+    - the training script accepts useful arguments such as `--debug` and `--dynamic_save`
     - the model trained on a RTX4060Ti 16GB, you need to adjust the hyperparameters from `train.sh` for customized training
     - run the command to start training:
     ```bash!
@@ -38,7 +38,7 @@ pip install -r requirements.txt
 - the `inference_mc.py` and `inference_qa.py` are also in `./src` folder.
 1. download trained model when execute inference process.
     - run the command to download model and tokenizer from google drive.
-    - when executed this, it will create `output` folder to save the trained model.
+    - when executed this, it will create `./output` folder to save the trained model.
     ```bash!
     bash ./download.sh
     ```
