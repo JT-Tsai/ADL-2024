@@ -1,8 +1,12 @@
 # ADL_HW1
 Department: NTNU EE
+<<<<<<< HEAD
 
 Student ID: 41375007h
 
+=======
+Student ID: 41375007h
+>>>>>>> f2c99b153de1d124a0abbe3366d35af917bc2bef
 Name: 蔡杰宇
 
 ## Env setup
