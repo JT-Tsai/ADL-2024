@@ -1,6 +1,6 @@
 # ADL_HW1
-Department: NTNU EE
-Student ID: 41375007h
+Department: NTNU EE \n
+Student ID: 41375007h \n
 Name: 蔡杰宇
 
 ## Env setup
@@ -12,6 +12,7 @@ pip install -r requirements.txt
 
 ## code reference
 [multiple choice](https://github.com/huggingface/transformers/blob/main/examples/pytorch/multiple-choice/run_swag_no_trainer.py)
+\n
 [question answering](https://github.com/huggingface/transformers/blob/main/examples/pytorch/question-answering/run_qa_no_trainer.py)
 
 
@@ -40,7 +41,7 @@ pip install -r requirements.txt
     bash ./download.sh
     ```
 2. execute inference process
-    - run the commmand to start inference.
+    - run the commmand to start inference, you can replace the path what you want.
     ```bash
     bash ./run.sh /path/to/context.json /path/to/test.json path/to/pred/prediction.csv
     ```
