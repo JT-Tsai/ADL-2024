@@ -1,6 +1,6 @@
 # ADL_HW1
-Department: NTNU EE \n
-Student ID: 41375007h \n
+Department: NTNU EE
+Student ID: 41375007h
 Name: 蔡杰宇
 
 ## Env setup
@@ -12,7 +12,7 @@ pip install -r requirements.txt
 
 ## code reference
 [multiple choice](https://github.com/huggingface/transformers/blob/main/examples/pytorch/multiple-choice/run_swag_no_trainer.py)
-\n
+
 [question answering](https://github.com/huggingface/transformers/blob/main/examples/pytorch/question-answering/run_qa_no_trainer.py)
 
 
