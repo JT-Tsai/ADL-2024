@@ -455,19 +455,25 @@ def main():
             eval_metric = metric.compute()
             accelerator.print(f"epoch {epoch}: {eval_metric}")
 
+            t_loss = total_loss.item() / len(train_dataloader)
+            e_loss = eval_loss.item() / len(eval_dataloader)
+
             if args.with_tracking:
                 accelerator.log(
                     {
                         "accuracy": eval_metric,
-                        "train_loss": total_loss.item() / len(train_dataloader),
+                        "train_loss": t_loss,
+                        "eval_loss": e_loss,
                         "epoch": epoch,
                         "step": completed_steps,
                     },
                     step = completed_steps,
                 )
-
-            train_loss.append(total_loss.item() / len(train_dataloader))
-            valid_loss.append(eval_loss.item() / len(eval_dataloader))
+            
+            print("train_loss: ", t_loss)
+            print("eval_loss: ", e_loss)
+            train_loss.append(t_loss)
+            valid_loss.append(e_loss)
             acc.append(eval_metric['accuracy'])
 
             if args.push_to_hub and epoch < args.num_train_epoch - 1:
