@@ -72,7 +72,7 @@ except(LookupError, OSError):
         nltk.download("punkt", quiet=True)
 
 
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = 0
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 def main():
     args = parse_args()
