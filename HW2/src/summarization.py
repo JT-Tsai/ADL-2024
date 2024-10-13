@@ -73,7 +73,7 @@ except(LookupError, OSError):
 
 def main():
     args = parse_args()
-    
+    ipdb.set_trace()
     # Sending telemetry. Tracking the example usage helps us better allocate resourses to maintain them. The
     # information sent is the one passed as arguments along with your Python/Pytorch versions.
     send_example_telemetry("summarization", args)
@@ -105,7 +105,7 @@ def main():
     # Make one log on every process with the configuration for debugging.
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
-        datafmt="%m/%d/%Y %H:%M:%S",
+        datefmt="%m/%d/%Y %H:%M:%S",
         level=logging.INFO,
     )
     logger.info(accelerator.state, main_process_only = False)
@@ -159,9 +159,13 @@ def main():
 
     """This section load dataset from pandas DataFrames and split training and testing set"""
     if args.jsonl_data_file is not None:
-        df = pd.read_json(args.json_data_file, lines = True, encodig = 'utf-8')
+        df = pd.read_json(args.jsonl_data_file, lines = True, encoding = 'utf-8')
+        if args.debug:
+            df = df.sample(n=300)
         raw_datasets = Dataset.from_pandas(df)
         raw_datasets = raw_datasets.train_test_split(args.split_rate)
+        raw_datasets["validation"] = raw_datasets.pop("test")
+        ipdb.set_trace()
 
     # Load pretrained model and tokenizer
     # download model and vocab
@@ -214,12 +218,12 @@ def main():
     # First we tokenizer all the texts
 
     column_names = raw_datasets["train"].column_names
-
     # Get the column names for input/target.
 
     dataset_columns = ["maintext", "title"]
     text_column = args.text_column if args.text_column is not None else dataset_columns[0]
     summary_column = args.summary_column if args.summary_column is not None else dataset_columns[1]
+
 
     # WTF
     if args.val_max_target_length is None:
@@ -234,7 +238,7 @@ def main():
         targets = examples[summary_column]
 
         inputs = [prefix + inp for inp in inputs]
-        model_inputs = tokenizer(inputs, max_legnth=args.max_source_length, padding=padding, truncation=True)
+        model_inputs = tokenizer(inputs, max_length=args.max_source_length, padding=padding, truncation=True)
 
         # Tokenize targets with the `text_target` keyword argument
         labels = tokenizer(text_target=targets, max_length = max_target_length, padding=padding, truncation=True)
@@ -324,7 +328,7 @@ def main():
         },
     ]
 
-    optimizer = torch.utils.AdamW(optimizer_grouped_parameters, lr=args.learning_rate)
+    optimizer = torch.optim.AdamW(optimizer_grouped_parameters, lr=args.learning_rate)
 
     # Scheduler and math aroud the number of training steps.
     overrode_max_train_step = False
@@ -336,7 +340,7 @@ def main():
     lr_scheduler = get_scheduler(
         name=args.lr_scheduler_type,
         optimizer = optimizer,
-        num_warmup_steps=args.num_warmup_steps * accelerator.num_prcesses,
+        num_warmup_steps=args.num_warmup_steps * accelerator.num_processes,
         num_training_steps = args.max_train_steps
         if overrode_max_train_step
         else args.max_train_steps * accelerator.num_processes,
@@ -364,7 +368,7 @@ def main():
     if args.with_tracking:
         experiment_config = vars(args)
         # TensorBoard can't log Enums, need to raw value
-        experiment_config["lr_scheduler_type"] = experiment_config["lr_schduler_type"].value
+        experiment_config["lr_scheduler_type"] = experiment_config["lr_scheduler_type"].value
         accelerator.init_trackers("summarization", experiment_config)
     
     ipdb.set_trace()

@@ -6,7 +6,7 @@ MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(decription="Finetune a transformers model on a summarization task")
+    parser = argparse.ArgumentParser(description="Finetune a transformers model on a summarization task")
     parser.add_argument( "--dataset_name",
         type=str,
         default=None,
@@ -18,7 +18,7 @@ def parse_args():
         help="The configuration name of the dataset to use",
     )
     parser.add_argument("--jsonl_data_file", 
-        type, default=None, help = "use this when training data and validation in the same jsonl file"
+        type=str, default=None, help = "use this when training data and validation in the same jsonl file"
     )
     parser.add_argument("--train_file", 
         type=str, default=None, help="A csv or json file containing the training data.",
@@ -119,12 +119,12 @@ def parse_args():
         default=8,
         help="Batch size (per device) for the evaluation dataloader."
     )
-    parser.add_argument("--learing_rate",
+    parser.add_argument("--learning_rate",
         type=float,
         default=5e-5,
         help="Initial learning rate (after the petential warmup period) to use.",
     )
-    parser.add_argument("--weigth_decay", 
+    parser.add_argument("--weight_decay", 
         type=float, default=0.0, help="Weight decay to use.")
     parser.add_argument("--num_train_epochs", 
         type=int, default=3, help="Total number of training epochs to perform")
@@ -176,27 +176,28 @@ def parse_args():
         default="all",
         help=(
             "The integration to report the results and logs to."
-        )
+        ),
+    )
+    parser.add_argument(
+        "--trust_remote_code",
+        action="store_true",
+        help=(
+            "Whether to trust the execution of code from datasets/models defined on the Hub."
+            " This option should only be set to `True` for repositories you trust and in which you have read the"
+            " code, as it will execute code present on the Hub on your local machine."
+        ),
     )
     parser.add_argument("--split_rate", type=float, default=0.1, help="the ratio of the training to testing data")
+    parser.add_argument("--debug", action="store_true", help="using this to test code")
     # parser.add_argument("--push_to_hub", action="store_true", help="Whether or not to push the model to the Hub.")
     # parser.add_argument(
     #     "--hub_model_id", type=str, help="The name of the repository to keep in sync with the local `output_dir`."
     # )
     # parser.add_argument("--hub_token", type=str, help="The token to use to push to the Model Hub.")
-    # parser.add_argument(
-    #     "--trust_remote_code",
-    #     action="store_true",
-    #     help=(
-    #         "Whether to trust the execution of code from datasets/models defined on the Hub."
-    #         " This option should only be set to `True` for repositories you trust and in which you have read the"
-    #         " code, as it will execute code present on the Hub on your local machine."
-    #     ),
-    # )
 
     args = parser.parse_args()
 
-    if args.dataset_name is None and args.data_file and args.train_file is None and args.validation_file is None:
+    if args.dataset_name is None and args.jsonl_data_file is None and args.train_file is None and args.validation_file is None:
         raise ValueError("Need either a dataset name or a training/validation file.")
     # else:
     #     if args.train_file is not None:
