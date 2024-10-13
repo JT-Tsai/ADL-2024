@@ -24,6 +24,7 @@ import logging
 import math
 import os
 import random
+import pandas as pd
 from pathlib import Path
 
 import datasets
@@ -34,7 +35,7 @@ import torch
 from accelerate import Accelerator
 from accelerate.logging import get_logger
 from accelerate.utils import set_seed
-from datasets import load_dataset
+from datasets import load_dataset, Dataset
 from filelock import FileLock
 from huggingface_hub import HfApi
 from torch.utils.data import DataLoader
@@ -55,10 +56,10 @@ from transformers import (
 from transformers.utils import check_min_version, is_offline_mode, send_example_telemetry
 # from transformers.utils.versions import require_version
 
-logger = get_logger(__name__)
+from parse_args import parse_args
+import ipdb
 
-MODEL_CONFIG_CLASSES = list(MODEL_MAPPING.keys())
-MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
+logger = get_logger(__name__)
 
 try:
     nltk.data.find("tokenizer/punkt")
@@ -70,247 +71,9 @@ except(LookupError, OSError):
     with FileLock(".lock") as lock:
         nltk.download("punkt", quiet=True)
 
-
-summarization_name_mapping = {
-    # "amazon_reviews_multi": ("review_body", "review_title"),
-    # "big_patent": ("description", "abstract"),
-    # "cnn_dailymail": ("article", "highlights"),
-    # "orange_sum": ("text", "summary"),
-    # "psc": ("extract_text", "summary_text"),
-    # "samsum": ("dialogue", "summary"),
-    # "thaisum": ("body", "summary"),
-    # "xglue": ("news_body", "news_title"),
-    # "xsum": ("document", "summary"),
-    # "wiki_summary": ("article", "highlights"),
-    # "pn_summary": ("article", "summary")
-    """add"""
-}
-
-def parse_args():
-    parser = argparse.ArgumentParser(decription="Finetune a transformers model on a summarization task")
-    parser.add_argument(
-        "--dataset_name",
-        type=str,
-        default=None,
-        help="The name of the dataset to use",
-    )
-    parser.add_argument(
-        "--dataset_config_name",
-        type=str,
-        default=None,
-        help="The configuration name of the dataset to use",
-    )
-    parser.add_argument(
-        "--train_file", type=str, default=None, help="A csv or json file containing the training data.",
-    )
-    parser.add_argument(
-        "--validation_file", type=str, default=None, help="A csv or a json file containing the validation data.",
-    )
-    parser.add_argument(
-        "--ignore_pad_token_for_loss",
-        type=bool,
-        default=True,
-        help="Whether to ignore the tokens corresponding to padded labels in the loss computation or not.",
-    )
-    parser.add_argument(
-        "--max_source_length",
-        type=int,
-        default=1024,
-        help=(
-            "The maximum total input sequence length after "
-            "tokenization.Sequences longer than this will be truncated, sequences shorter will be padded."
-        ),
-    )
-    # WTF ?
-    parser.add_argument(
-        "--source_prefix",
-        type=str,
-        default=None,
-        help="A prefix to add before every source text (useful for T5 models).",
-    )
-    parser.add_argument(
-        "--preprocessing_num_workers",
-        type=int,
-        default=None,
-        help="The number of processes to use for the preprocessing.",
-    )
-    parser.add_argument(
-        "--overwrite_cache", action="store_true", help="Overwrite the cached training and evaluation sets",
-    )
-    # WTF
-    parser.add_argument(
-        "--max_target_length",
-        type=int,
-        default=128,
-        help=(
-            "The maximum total sequence length for target text after "
-            "tokenization. Sequences longer than this will be truncated, sequences shorter will be padded. "
-            "during ``evaluate`` and ``predict``."
-        ),
-    )
-    # WTF
-    parser.add_argument(
-        "--val_max_target_length",
-        type=int,
-        default=None,
-        help=(
-            "The maximum total sequence length for validation "
-            "target text after tokenizeation.Sequences longer than this will be truncated, sequences shorter will be "
-            "padded. Will default to `max_target_length`. This argument is also used to override the ``max_length_`` "
-            "param of ``model.generate``, which is used during ``evaluate`` and ``predict``."
-        ),
-    )
-    parser.add_argument(
-        "--num_beams",
-        type=int,
-        default=None,
-        help=(
-            "Number of beams to use for evaluation. This argument will be "
-            "passed to ``model.generate``, which is used during ``evaluate`` and ``predict``."
-        ),
-    )
-    parser.add_argument(
-        "--pad_to_max_length",
-        action="store_true",
-        help="If passed, pad all samples to `max_length`. Otherwise, dynamic padding is used.",
-    )
-    parser.add_argument(
-        "--model_name_or_path",
-        type=str,
-        help="Path to pretrained model or model identifier from huggingface.co/models.",
-    )
-    parser.add_argument(
-        "--config_name",
-        type=str,
-        default=None,
-        help="Pretrained config name or path if not the same as model_name",
-    )
-    parser.add_argument(
-        "--tokenizer_name",
-        type=str,
-        default=None,
-        help="Pretrained tokenizer name or path if not the same as model_name",
-    )
-    parser.add_argument(
-        "--text_column",
-        type=str,
-        default=None,
-        help="The name of the column in the datasets containing the full texts (for summarization)",
-    )
-    parser.add_argument(
-        "--use_slow_tokenizer",
-        action="store_true",
-        help="if passed, will use a slow tokenizer (not backed by the 🤗 Tokenizers library).",
-    )
-    parser.add_argument(
-        "--per_device_train_batch_size",
-        type=int,
-        default=8,
-        help="Batch size (per device) for the training dataloader."
-    )
-    parser.add_argument(
-        "--per_device_eval_batch_size",
-        type=int,
-        default=8,
-        help="Batch size (per device) for the evaluation dataloader."
-    )
-    parser.add_argument(
-        "--learing_rate",
-        type=float,
-        default=5e-5,
-        help="Initial learning rate (after the petential warmup period) to use.",
-    )
-    parser.add_argument("--weigth_decay", type=float, default=0.0, help="Weight decay to use.")
-    parser.add_argument("--num_train_epochs", type=int, default=3, help="Total number of training epochs to perform")
-    parser.add_argument(
-        "--max_train_steps",
-        type=int,
-        default=None,
-        help="Total number of training steps to perform. If provide, overrides num_train_epochs."
-    )
-    parser.add_argument(
-        "--gradient_accumulation_steps",
-        type=int,
-        default=1,
-        help="Number of updates steps to accumalate before performing a backward/update pass."
-    )
-    parser.add_argument(
-        "--lr_scheduler_type",
-        type=SchedulerType,
-        default="linear",
-        help="The scheduler type to use",
-        choices=["linear", "cosine", "cosine_with_restarts", "polynomial", "constant", "constant_with_warmup"],
-    )
-    parser.add_argument(
-        "--num_warmup_steps", type=int, default=0, help="Number of steps for the warmup in the lr scheduler."
-    )
-    parser.add_argument("--output_dir", type=str, default=None, help="Where to store the final model.")
-    parser.add_argument("--seed", type=int, default=None, help="A seed for reproducible training.")
-    parser.add_argument(
-        "--model_type",
-        type=str,
-        default=None,
-        help="Model type to use if training from scratch",
-        choices = MODEL_TYPES,
-    )
-    # parser.add_argument("--push_to_hub", action="store_true", help="Whether or not to push the model to the Hub.")
-    # parser.add_argument(
-    #     "--hub_model_id", type=str, help="The name of the repository to keep in sync with the local `output_dir`."
-    # )
-    # parser.add_argument("--hub_token", type=str, help="The token to use to push to the Model Hub.")
-    # parser.add_argument(
-    #     "--trust_remote_code",
-    #     action="store_true",
-    #     help=(
-    #         "Whether to trust the execution of code from datasets/models defined on the Hub."
-    #         " This option should only be set to `True` for repositories you trust and in which you have read the"
-    #         " code, as it will execute code present on the Hub on your local machine."
-    #     ),
-    # )
-    parser.add_argument(
-        "--checkpointing_steps",
-        type=str,
-        default=None,
-        help="Whether the various states should be saved at the end of every n steps, or 'epoch' for each epoch.",
-    )
-    parser.add_argument(
-        "--resume_from_checkpoint",
-        type=str,
-        default=None,
-        help="If the training should continue from a checkpoint folder.",
-    )
-    parser.add_argument(
-        "--with_tracking",
-        action="store_true",
-        help="Whether to enable experiment trackers for logging.",
-    )
-    parser.add_argument(
-        "--report_to",
-        type=str,
-        default="all",
-        help=(
-            "The integration to report the results and logs to."
-        )
-    )
-
-    args = parser.parse_args()
-
-    if args.dataset_name is None and args.train_file is None and args.validation_file is None:
-        raise ValueError("Need either a dataset name or a training/validation file.")
-    else:
-        if args.train_file is not None:
-            extention = args.train_file.split(".")[-1]
-            assert extention in ["csv", "json"], "`train_file` should be a csv or json file."
-        if args.validation is not None:
-            extention = args.validation_file.split(".")[-1]
-            assert extention in ["csv", "json"], "`validation_file` should be a csv or a json file."
-
-    return args
-
 def main():
     args = parse_args()
     
-
     # Sending telemetry. Tracking the example usage helps us better allocate resourses to maintain them. The
     # information sent is the one passed as arguments along with your Python/Pytorch versions.
     send_example_telemetry("summarization", args)
@@ -325,17 +88,20 @@ def main():
         accelerator_log_kwargs["project_dir"] = args.output_dir
 
     accelerator = Accelerator(gradient_accumulation_steps = args.gradient_accumulation_steps, **accelerator_log_kwargs)
-    if args.source_prefix is None and args.model_name_or_path in [
-        "google-t5/t5-small",
-        "google-t5/t5-base",
-        "google-t5/t5-large",
-        "google-t5/t5-3b",
-        "google-t5/t5-11b",
-    ]:
-        logger.warning(
-            "You're running a t5 model but didn't provide a source prefix, which is the expected, e.g. with "
-            "`--source_prefix 'summarize: '`"
-        )
+
+    # **not essential**
+    # if args.source_prefix is None and args.model_name_or_path in [
+    #     "google-t5/t5-small",
+    #     "google-t5/t5-base",
+    #     "google-t5/t5-large",
+    #     "google-t5/t5-3b",
+    #     "google-t5/t5-11b",
+    # ]:
+    #     logger.warning(
+    #         "You're running a t5 model but didn't provide a source prefix, which is the expected, e.g. with "
+    #         "`--source_prefix 'summarize: '`"
+    #     )
+
     # Make one log on every process with the configuration for debugging.
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -354,6 +120,7 @@ def main():
     if args.seed is not None:
         set_seed(args.seed)
 
+    # **not essential**
     # Handle the repository creation
     # if accelerator.is_main_process:
     #     if args.push_to_hub:
@@ -374,23 +141,27 @@ def main():
     #         os.makedirs(args.output_dir, exist_ok=True)
     # accelerator.wait_for_everyone()
 
-
-    if args.dataset_name is not None:
-        # Downloading and loading a dataset from the hub.
-        raw_datasets = load_dataset(
-            args.dataset_name, args.dataset_config_name, trust_remote_code=args.trust_remote_code
-        )
-    else:
-        data_files = {}
-        if args.train_file is not None:
-            data_files["train"] = args.train_file
-            extension = args.train_file.split(".")[-1]
-        if args.validatioin_file is not None:
-            data_files["validation"] = args.validation_file
-            extension = args.validation_file.split(".")[-1]
-        raw_datasets = load_dataset(extension, data_files = data_files)
     
-    """This section need to modify load dataset from pandas DataFrames"""
+    # if args.dataset_name is not None:
+    #     # Downloading and loading a dataset from the hub.
+    #     raw_datasets = load_dataset(
+    #         args.dataset_name, args.dataset_config_name, trust_remote_code=args.trust_remote_code
+    #     )
+    # else:
+    #     data_files = {}
+    #     if args.train_file is not None:
+    #         data_files["train"] = args.train_file
+    #         extension = args.train_file.split(".")[-1]
+    #     if args.validatioin_file is not None:
+    #         data_files["validation"] = args.validation_file
+    #         extension = args.validation_file.split(".")[-1]
+    #     raw_datasets = load_dataset(extension, data_files = data_files)
+
+    """This section load dataset from pandas DataFrames and split training and testing set"""
+    if args.jsonl_data_file is not None:
+        df = pd.read_json(args.json_data_file, lines = True, encodig = 'utf-8')
+        raw_datasets = Dataset.from_pandas(df)
+        raw_datasets = raw_datasets.train_test_split(args.split_rate)
 
     # Load pretrained model and tokenizer
     # download model and vocab
@@ -432,7 +203,8 @@ def main():
     embedding_size = model.get_input_embeddings().weight.shape[0]
     if len(tokenizer) > embedding_size:
         model.resize_token_embeddings(len(tokenizer))
-    # WTF
+
+    # The decoder_start_token_id is a special token ID that marks the beginning of the decoder input.
     if model.config.decoder_start_token_id is None:
         raise ValueError("Make sure that `config.decoder_start_token_id` is correcctly defined")
     
@@ -445,24 +217,10 @@ def main():
 
     # Get the column names for input/target.
 
-    dataset_columns = summarization_name_mapping.get(args.dataset_name, None)
-    if args.text_column is None:
-        text_column = dataset_columns[0] if dataset_columns is not None else column_names[0]
-    else:
-        text_column = args.text_column
-        if text_column not in column_names:
-            raise ValueError(
-                f"--text_column' value '{args.text_column}' needs to be one of: {','.join(column_names)}"
-            )
-    if args.summary_column is None:
-        summary_column = dataset_columns[1] if dataset_columns is not None else column_names[1]
-    else:
-        summary_column = args.summary_column
-        if summary_column not in column_names:
-            raise ValueError(
-                f"--summary_column' value '{args.summary_column}' needs to be one of: {', '.join(column_names)}"    
-            )
-        
+    dataset_columns = ["maintext", "title"]
+    text_column = args.text_column if args.text_column is not None else dataset_columns[0]
+    summary_column = args.summary_column if args.summary_column is not None else dataset_columns[1]
+
     # WTF
     if args.val_max_target_length is None:
         args.val_max_target_length = args.max_target_length
@@ -474,7 +232,7 @@ def main():
     def preprocess_function(examples):
         inputs = examples[text_column]
         targets = examples[summary_column]
-        # Why
+
         inputs = [prefix + inp for inp in inputs]
         model_inputs = tokenizer(inputs, max_legnth=args.max_source_length, padding=padding, truncation=True)
 
@@ -539,6 +297,7 @@ def main():
         labels = [label.strip() for label in labels]
 
         # rougeSum expects newline after each sentence
+        # remove space or newline character on the beginning.
         preds = ["\n".join(nltk.sent_tokenize(pred)) for pred in preds]
         labels = ["\n".join(nltk.sent_tokenize(label)) for label in labels]
     
@@ -568,18 +327,18 @@ def main():
     optimizer = torch.utils.AdamW(optimizer_grouped_parameters, lr=args.learning_rate)
 
     # Scheduler and math aroud the number of training steps.
-    overrode_max_trian_step = False
+    overrode_max_train_step = False
     num_update_steps_per_epoch =  math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
     if args.max_train_steps is None:
         args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
-        overrode_max_trian_step = True
+        overrode_max_train_step = True
     
     lr_scheduler = get_scheduler(
         name=args.lr_scheduler_type,
         optimizer = optimizer,
         num_warmup_steps=args.num_warmup_steps * accelerator.num_prcesses,
         num_training_steps = args.max_train_steps
-        if overrode_max_trian_step
+        if overrode_max_train_step
         else args.max_train_steps * accelerator.num_processes,
     )
 
@@ -590,7 +349,7 @@ def main():
 
     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
     num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
-    if overrode_max_trian_step:
+    if overrode_max_train_step:
         args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
     # Afterwards we reclaculate our number of training epochs
     args.num_train_epochs = math.ceil(args.max_train_steps / num_update_steps_per_epoch)
@@ -607,6 +366,8 @@ def main():
         # TensorBoard can't log Enums, need to raw value
         experiment_config["lr_scheduler_type"] = experiment_config["lr_schduler_type"].value
         accelerator.init_trackers("summarization", experiment_config)
+    
+    ipdb.set_trace()
 
     # Metric
     metric = evaluate.load("rouge")

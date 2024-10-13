@@ -4,3 +4,5 @@ training_target.txt
 *.zip
 *.csv
 *.pptx
+plot_result/*
+submit_package/*
