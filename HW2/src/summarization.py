@@ -57,7 +57,7 @@ from transformers.utils import check_min_version, is_offline_mode, send_example_
 # from transformers.utils.versions import require_version
 
 from parse_args import parse_args
-import ipdb
+# import ipdb
 
 logger = get_logger(__name__)
 
@@ -73,7 +73,7 @@ except(LookupError, OSError):
 
 def main():
     args = parse_args()
-    ipdb.set_trace()
+    # ipdb.set_trace()
     # Sending telemetry. Tracking the example usage helps us better allocate resourses to maintain them. The
     # information sent is the one passed as arguments along with your Python/Pytorch versions.
     send_example_telemetry("summarization", args)
@@ -165,7 +165,7 @@ def main():
         raw_datasets = Dataset.from_pandas(df)
         raw_datasets = raw_datasets.train_test_split(args.split_rate)
         raw_datasets["validation"] = raw_datasets.pop("test")
-        ipdb.set_trace()
+        # ipdb.set_trace()
 
     # Load pretrained model and tokenizer
     # download model and vocab
@@ -371,7 +371,7 @@ def main():
         experiment_config["lr_scheduler_type"] = experiment_config["lr_scheduler_type"].value
         accelerator.init_trackers("summarization", experiment_config)
     
-    ipdb.set_trace()
+    # ipdb.set_trace()
 
     # Metric
     metric = evaluate.load("rouge")
