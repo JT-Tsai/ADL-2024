@@ -71,9 +71,6 @@ except(LookupError, OSError):
     with FileLock(".lock") as lock:
         nltk.download("punkt", quiet=True)
 
-
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
-
 def main():
     args = parse_args()
     # ipdb.set_trace()
@@ -166,6 +163,8 @@ def main():
         if args.debug:
             df = df.sample(n=300)
         raw_datasets = Dataset.from_pandas(df)
+        if args.debug:
+            print(df.head(1))
         raw_datasets = raw_datasets.train_test_split(args.split_rate)
         raw_datasets["validation"] = raw_datasets.pop("test")
         # ipdb.set_trace()
@@ -215,7 +214,8 @@ def main():
     if model.config.decoder_start_token_id is None:
         raise ValueError("Make sure that `config.decoder_start_token_id` is correcctly defined")
     
-    prefix = args.source_prefix if args.source_prefix is not None else ""
+    # for t5
+    prefix = "summarize: "
 
     # Preprocessing the datasets
     # First we tokenizer all the texts
@@ -237,6 +237,7 @@ def main():
     padding = "max_length" if args.pad_to_max_length else False
 
     def preprocess_function(examples):
+        """add index of each data"""
         inputs = examples[text_column]
         targets = examples[summary_column]
 
@@ -375,6 +376,8 @@ def main():
         accelerator.init_trackers("summarization", experiment_config)
     
     # ipdb.set_trace()
+
+    """---------------------------------------modify_line------------------------------------------------"""
 
     # Metric
     metric = evaluate.load("rouge")
