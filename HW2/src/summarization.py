@@ -424,8 +424,9 @@ def main():
             checkpoint_path = path
             path = os.path.basename(checkpoint_path)
         
-    accelerator.print(f"Resumed from checkpoint: {checkpoint_path}")
-    accelerator.load_state(checkpoint_path)
+        accelerator.print(f"Resumed from checkpoint: {checkpoint_path}")
+        accelerator.load_state(checkpoint_path)
+        
     # Extract  `epoch_{i}` or `step_{i}`
     training_difference = os.path.splitext(path)[0]
 
