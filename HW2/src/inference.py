@@ -124,7 +124,8 @@ def inference(args, model, tokenizer, eval_dataloader):
     model.eval()
 
     gen_kwargs = {
-        "max_length"    : args.val_max_target_length,
+        "max_length"    : args.val_max_target_length, # this option will pad to length we want to generate
+                                                        # the rest of will pad to tokenizer.pad_token_id
         "num_beams"     : args.num_beams,
         "do_sample"     : args.do_sample,
         "top_k"         : args.top_k,
@@ -135,8 +136,7 @@ def inference(args, model, tokenizer, eval_dataloader):
 
     for batch in tqdm(eval_dataloader):
         for key in batch:
-            if key == "input_ids" or key == "attention_mask":
-                batch[key].to(DEVICE)
+            batch[key].to(DEVICE)
         
         with torch.no_grad():
             generated_tokens = model.generate(
@@ -147,9 +147,8 @@ def inference(args, model, tokenizer, eval_dataloader):
 
             generated_tokens = generated_tokens.cpu().numpy()
 
-            labels = batch["labels"]
+            labels = batch["labels"].cpu().numpy()
             ipdb.set_trace()
-            labels = labels.numpy()
 
             if args.ignore_pad_token_for_loss:
                 labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
