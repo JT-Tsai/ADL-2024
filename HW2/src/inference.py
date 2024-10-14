@@ -135,8 +135,8 @@ def inference(args, model, tokenizer, eval_dataloader):
 
     for batch in tqdm(eval_dataloader):
         for key in batch:
-            # if key == "input_ids" or key == "attention_mask":
-            batch[key].to(DEVICE)
+            if key == "input_ids" or key == "attention_mask":
+                batch[key].to(DEVICE)
         
         with torch.no_grad():
             generated_tokens = model.generate(
@@ -145,14 +145,14 @@ def inference(args, model, tokenizer, eval_dataloader):
                 **gen_kwargs,
             )
 
-            generated_tokens = generated_tokens.cpu().numpy()
+            generated_tokens = generated_tokens.numpy()
 
-            labels = batch["labels"].cpu()
+            labels = batch["labels"]
             ipdb.set_trace()
-            labels = labels.cpu().numpy()
+            labels = labels.numpy()
 
             if args.ignore_pad_token_for_loss:
-                labels = np.where(labels != 100, labels, tokenizer.pad_token_id)
+                labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
             if isinstance(generated_tokens, tuple):
                 generated_tokens = generated_tokens[0]
 
