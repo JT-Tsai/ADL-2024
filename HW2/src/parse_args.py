@@ -191,7 +191,7 @@ def parse_args():
     )
     parser.add_argument("--split_rate", type=float, default=0.1, help="the ratio of the training to testing data")
     parser.add_argument("--debug", action="store_true", help="using this to test code")
-
+    parser.add_argument("--n_test_data", type=int, default=300, help="if --debug passed, choose test data size you want")
     parser.add_argument("--do_sample", action="store_true", help="decoder algorithm")
     parser.add_argument("--top_k", type=float, default=None, help="when --do_sample passed, this parameter works")
     parser.add_argument("--top_p", type=float, default=None, help="when --do_sample passed, this parameter works")

@@ -151,7 +151,7 @@ def main():
     if args.jsonl_data_file is not None:
         df = pd.read_json(args.jsonl_data_file, lines = True, encoding = 'utf-8')
         if args.debug:
-            df = df.sample(n=300)
+            df = df.sample(n=args.n_test_data)
         raw_datasets = Dataset.from_pandas(df)
         if args.debug:
             print(df.head(1))

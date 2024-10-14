@@ -3,7 +3,7 @@ import jsonlines
 from filelock import FileLock
 from transformers.utils import is_offline_mode
 
-# download nltk package 
+# download nltk package
 try:
     nltk.data.find("tokenizer/punkt")
 except(LookupError, OSError):
