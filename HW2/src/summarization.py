@@ -297,6 +297,7 @@ def main():
 
     # Log a few random samples from the training set:
     for index in random.sample(range(len(train_dataset)), 1):
+        ipdb.set_trace()
         logger.info(train_dataset)
         logger.info(f"Sample {index} of the training set: {train_dataset[index]}.")
     for index in random.sample(range(len(eval_dataset)), 1):

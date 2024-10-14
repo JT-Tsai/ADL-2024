@@ -3,6 +3,8 @@ import jsonlines
 from filelock import FileLock
 from transformers.utils import is_offline_mode
 
+import ipdb
+
 # download nltk package
 try:
     nltk.data.find("tokenizer/punkt")
@@ -23,6 +25,8 @@ def postprocess_text(preds, labels):
     # remove space or newline character on the beginning.
     preds = ["\n".join(nltk.sent_tokenize(pred)) for pred in preds]
     labels = ["\n".join(nltk.sent_tokenize(label)) for label in labels]
+
+    ipdb.set_trace()
 
     return preds, labels
 

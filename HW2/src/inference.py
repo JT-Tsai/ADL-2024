@@ -149,7 +149,7 @@ def inference(args, model, tokenizer, eval_dataloader):
 
             labels = batch["labels"].cpu().numpy()
 
-            ipdb.set_trace()
+            # ipdb.set_trace()
 
             if args.ignore_pad_token_for_loss:
                 labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
