@@ -464,7 +464,7 @@ def main():
                 loss = outputs.loss
                 # We keep track of the loss at each epoch
                 if args.with_tracking:
-                    total_loss += loss.detech().float()
+                    total_loss += loss.detach().float()
                 accelerator.backward(loss)
                 optimizer.step()
                 lr_scheduler.step()
