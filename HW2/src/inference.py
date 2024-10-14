@@ -135,8 +135,8 @@ def inference(args, model, tokenizer, eval_dataloader):
 
     for batch in tqdm(eval_dataloader):
         for key in batch:
-            if key == "input_ids" or key == "attention_mask":
-                batch[key].to(DEVICE)
+            # if key == "input_ids" or key == "attention_mask":
+            batch[key].to(DEVICE)
         
         with torch.no_grad():
             generated_tokens = model.generate(
@@ -161,7 +161,7 @@ def inference(args, model, tokenizer, eval_dataloader):
 
             decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
 
-            index = batch["id"]
+            index = batch["id"].cpu().numpy()
 
             for id, pred in zip(index, decoded_preds):
                 ids_set.append(str(id.cpu().numpy()))
