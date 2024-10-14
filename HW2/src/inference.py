@@ -147,7 +147,7 @@ def inference(args, model, tokenizer, eval_dataloader):
 
             generated_tokens = generated_tokens.cpu().numpy()
 
-            labels = batch["labels"]
+            labels = batch["label"]
             ipdb.set_trace()
             labels = labels.cpu().numpy()
 
