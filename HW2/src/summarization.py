@@ -306,10 +306,10 @@ def main():
 
     # Log a few random samples from the training set:
     for index in random.sample(range(len(train_dataset)), 1):
-        logger.info(train_dataset.keys())
+        logger.info(train_dataset)
         logger.info(f"Sample {index} of the training set: {train_dataset[index]}.")
     for index in random.sample(range(len(eval_dataset)), 1):
-        logger.info(eval_dataset.keys())
+        logger.info(eval_dataset)
         logger.info(f"Sample {index} of the training set: {eval_dataset[index]}.")
 
     label_pad_token_id = -100 if args.ignore_pad_token_for_loss else tokenizer.pad_token_id
