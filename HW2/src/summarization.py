@@ -471,7 +471,7 @@ def main():
                 optimizer.zero_grad()
             
             # Check if the accelerator has performed an optimization step behind the 
-            if accelerator.sync_gradients():
+            if accelerator.sync_gradients:
                 progress_bar.update(1)
                 completed_steps += 1
             
