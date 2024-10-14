@@ -85,7 +85,7 @@ def Prepare_work(args):
                 [(l if l != tokenizer.pad_token_id else -100) for l in label] for label in labels["input_ids"]
             ]
         
-        model_inputs["label"] = labels["input_ids"]
+        model_inputs["labels"] = labels["input_ids"]
         model_inputs["id"] = index
         return model_inputs
     
@@ -147,7 +147,7 @@ def inference(args, model, tokenizer, eval_dataloader):
 
             generated_tokens = generated_tokens.cpu().numpy()
 
-            labels = batch["label"]
+            labels = batch["labels"]
             ipdb.set_trace()
             labels = labels.cpu().numpy()
 
