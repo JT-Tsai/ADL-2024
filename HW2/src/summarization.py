@@ -255,7 +255,7 @@ def main():
                 [(l if l != tokenizer.pad_token_id else -100) for l in label] for label in labels["input_ids"]
             ]
         
-        model_inputs["label"] = labels["input_ids"]
+        model_inputs["labels"] = labels["input_ids"]
         return model_inputs
     
     def preprocess_eval_function(examples):
@@ -279,7 +279,7 @@ def main():
                 [(l if l != tokenizer.pad_token_id else -100) for l in label] for label in labels["input_ids"]
             ]
         
-        model_inputs["label"] = labels["input_ids"]
+        model_inputs["labels"] = labels["input_ids"]
         model_inputs["id"] = index
         return model_inputs
     
@@ -306,8 +306,10 @@ def main():
 
     # Log a few random samples from the training set:
     for index in random.sample(range(len(train_dataset)), 1):
+        logger.info(train_dataset.keys())
         logger.info(f"Sample {index} of the training set: {train_dataset[index]}.")
     for index in random.sample(range(len(eval_dataset)), 1):
+        logger.info(eval_dataset.keys())
         logger.info(f"Sample {index} of the training set: {eval_dataset[index]}.")
 
     label_pad_token_id = -100 if args.ignore_pad_token_for_loss else tokenizer.pad_token_id
