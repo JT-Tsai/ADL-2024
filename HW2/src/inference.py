@@ -22,6 +22,8 @@ from transformers import (
     DataCollatorForSeq2Seq,
 )
 
+from tw_rouge import get_rouge
+
 import ipdb
 from utils import *
 
@@ -114,9 +116,10 @@ def Prepare_work(args):
 
     return model, tokenizer, eval_dataloader
 
-def inference(args, model, tokenizer, eval_dataloader):
+def inference(args, model, tokenizer, eval_dataloader, flag = False):
     ids_set = []
     pred_set = []
+    ref_set = []
 
     DEVICE = "cuda"
 
@@ -160,17 +163,23 @@ def inference(args, model, tokenizer, eval_dataloader):
             decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
             decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
+            
+            
 
             index = batch["id"].cpu().numpy()
-
-            for id, pred in zip(index, decoded_preds):
+            for id, pred, ref in zip(index, decoded_preds, decoded_labels):
                 ids_set.append(str(id))
                 pred_set.append(pred)
-        
+                ref_set.append(ref)
+
     write_jsonl_file(args.output_file, ids_set, pred_set)
     print(f"succeed inference. jsonl file write down in {args.output_file}")
 
-    return pred_set
+    if flag:
+        rouge_score = get_rouge(decoded_labels, decoded_preds)
+        ipdb.set_trace()
+
+    return rouge_score
 
 if __name__ == "__main__":
     # do all thing

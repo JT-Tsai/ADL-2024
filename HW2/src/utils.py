@@ -3,7 +3,7 @@ import jsonlines
 from filelock import FileLock
 from transformers.utils import is_offline_mode
 
-import ipdb
+# import ipdb
 
 # download nltk package
 try:
@@ -26,7 +26,7 @@ def postprocess_text(preds, labels):
     preds = ["\n".join(nltk.sent_tokenize(pred)) for pred in preds]
     labels = ["\n".join(nltk.sent_tokenize(label)) for label in labels]
 
-    ipdb.set_trace()
+    # ipdb.set_trace()
 
     return preds, labels
 
