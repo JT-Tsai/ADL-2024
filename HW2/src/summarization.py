@@ -57,6 +57,8 @@ from transformers.utils import check_min_version, is_offline_mode, send_example_
 from parse_args import parse_args
 from utils import *
 from inference import inference
+from tw_rouge import get_rouge
+# from eval import eval
 import ipdb
 
 logger = get_logger(__name__)
@@ -480,9 +482,9 @@ def main():
 
         # this section using tw_rouge validate model performance
 
-        inference(args, model, tokenizer, eval_dataloader)
+        pred = inference(args, model, tokenizer, eval_dataloader)
         ipdb.set_trace()
-
+        # get_rouge()
                 
 
         
@@ -515,13 +517,16 @@ def main():
             if args.output_dir is not None:
                 output_dir = os.path.join(args.output_dir, output_dir)
             accelerator.save_state(output_dir)
-
         if args.output_dir is not None:
             accelerator.wait_for_everyone()
+
+            for param in model.parameters():
+                param.data = param.data.contiguous()
             unwrapped_model = accelerator.unwrap_model(model)
             unwrapped_model.save_pretrained(
                     args.output_dir, is_main_process = accelerator.is_main_process, save_function = accelerator.save
             )
+
             if accelerator.is_main_process:
                 tokenizer.save_pretrained(args.output_dir)
                 # if args.push_to_hub:

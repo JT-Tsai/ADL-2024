@@ -170,6 +170,8 @@ def inference(args, model, tokenizer, eval_dataloader):
     write_jsonl_file(args.output_file, ids_set, pred_set)
     print(f"succeed inference. jsonl file write down in {args.output_file}")
 
+    return pred_set
+
 if __name__ == "__main__":
     # do all thing
     args = parse_args()
