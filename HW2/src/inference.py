@@ -147,8 +147,8 @@ def inference(args, model, tokenizer, eval_dataloader):
 
             generated_tokens = generated_tokens.cpu().numpy()
 
-            labels = batch["labels"].cpu()
-            labels = labels.numpy()
+            labels = batch["labels"].cpu().numpy()
+
             ipdb.set_trace()
 
             if args.ignore_pad_token_for_loss:
@@ -164,7 +164,7 @@ def inference(args, model, tokenizer, eval_dataloader):
             index = batch["id"].cpu().numpy()
 
             for id, pred in zip(index, decoded_preds):
-                ids_set.append(str(id.cpu().numpy()))
+                ids_set.append(str(id))
                 pred_set.append(pred)
         
     write_jsonl_file(args.output_file, ids_set, pred_set)
