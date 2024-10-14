@@ -176,7 +176,7 @@ def inference(args, model, tokenizer, eval_dataloader, flag = False):
     print(f"succeed inference. jsonl file write down in {args.output_file}")
 
     if flag:
-        rouge_score = get_rouge(decoded_labels, decoded_preds)
+        rouge_score = get_rouge(ref_set, pred_set)
         ipdb.set_trace()
 
     return rouge_score

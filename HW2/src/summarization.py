@@ -483,7 +483,7 @@ def main():
 
         # this section using tw_rouge validate model performance
 
-        pred = inference(args, model, tokenizer, eval_dataloader, flag=True)
+        score = inference(args, model, tokenizer, eval_dataloader, flag=True)
         # ipdb.set_trace()
         # get_rouge()
                 
