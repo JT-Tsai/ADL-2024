@@ -1,5 +1,19 @@
 import nltk
 import jsonlines
+from filelock import FileLock
+from transformers.utils import is_offline_mode
+
+# download nltk package 
+try:
+    nltk.data.find("tokenizer/punkt")
+except(LookupError, OSError):
+    if is_offline_mode():
+        raise LookupError(
+            "Offline mode: run this script without TRANSFORMERS_OFFLINE first tot download nltk data files"
+        )
+    with FileLock(".lock") as lock:
+        nltk.download("punkt", quiet=True)
+
 
 def postprocess_text(preds, labels):
     preds = [pred.strip() for pred in preds]

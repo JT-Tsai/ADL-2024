@@ -35,7 +35,6 @@ from accelerate import Accelerator
 from accelerate.logging import get_logger
 from accelerate.utils import set_seed
 from datasets import load_dataset, Dataset
-from filelock import FileLock
 from huggingface_hub import HfApi
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
@@ -58,19 +57,9 @@ from transformers.utils import check_min_version, is_offline_mode, send_example_
 from parse_args import parse_args
 from utils import *
 from inference import inference
-# import ipdb
+import ipdb
 
 logger = get_logger(__name__)
-
-try:
-    nltk.data.find("tokenizer/punkt")
-except(LookupError, OSError):
-    if is_offline_mode():
-        raise LookupError(
-            "Offline mode: run this script without TRANSFORMERS_OFFLINE first tot download nltk data files"
-        )
-    with FileLock(".lock") as lock:
-        nltk.download("punkt", quiet=True)
 
 def main():
     args = parse_args()
