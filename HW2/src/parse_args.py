@@ -149,6 +149,8 @@ def parse_args():
     )
     parser.add_argument("--output_dir", 
         type=str, default=None, help="Where to store the final model.")
+    parser.add_argument("--output_file",
+        type=str, default=None, help="the path to store the final output, which can replace --output_dir")
     parser.add_argument("--seed", 
         type=int, default=None, help="A seed for reproducible training.")
     parser.add_argument("--model_type",
@@ -189,6 +191,12 @@ def parse_args():
     )
     parser.add_argument("--split_rate", type=float, default=0.1, help="the ratio of the training to testing data")
     parser.add_argument("--debug", action="store_true", help="using this to test code")
+
+    parser.add_argument("--do_sample", action="store_true", help="decoder algorithm")
+    parser.add_argument("--top_k", type=float, default=None, help="when --do_sample passed, this parameter works")
+    parser.add_argument("--top_p", type=float, default=None, help="when --do_sample passed, this parameter works")
+    parser.add_argument("--temperature", type=float, default=None, help="this parameter control generate diversity")
+
     # parser.add_argument("--push_to_hub", action="store_true", help="Whether or not to push the model to the Hub.")
     # parser.add_argument(
     #     "--hub_model_id", type=str, help="The name of the repository to keep in sync with the local `output_dir`."
