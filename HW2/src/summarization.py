@@ -81,18 +81,7 @@ def main():
 
     accelerator = Accelerator(gradient_accumulation_steps = args.gradient_accumulation_steps, **accelerator_log_kwargs)
 
-    # **not essential**
-    # if args.source_prefix is None and args.model_name_or_path in [
-    #     "google-t5/t5-small",
-    #     "google-t5/t5-base",
-    #     "google-t5/t5-large",
-    #     "google-t5/t5-3b",
-    #     "google-t5/t5-11b",
-    # ]:
-    #     logger.warning(
-    #         "You're running a t5 model but didn't provide a source prefix, which is the expected, e.g. with "
-    #         "`--source_prefix 'summarize: '`"
-    #     )
+    # run t5 model need to give a prefix to specify task to do (summarize: )
 
     # Make one log on every process with the configuration for debugging.
     logging.basicConfig(
@@ -111,43 +100,6 @@ def main():
     # If passed along, set the training seed now.
     if args.seed is not None:
         set_seed(args.seed)
-
-    # **not essential**
-    # Handle the repository creation
-    # if accelerator.is_main_process:
-    #     if args.push_to_hub:
-    #         # Retrieve of infer repo_name
-    #         repo_name = args.hub_model_id
-    #         if repo_name is None:
-    #             repo_name = Path(args.output_dir).absolute().name
-    #         # Create repo and retrieve repo_id
-    #         api = HfApi()
-    #         repo_id = api.create_repo(repo_name, exist_ok=True, token=args.hub_token).repo_id
-
-    #         with open(os.path.join(args.output_dir, ".gitignore"), "w+") as gitignore:
-    #             if "step_*" not in gitignore:
-    #                 gitignore.write("step_*\n")
-    #             if "epoch_*" not in gitignore:
-    #                 gitignore.write("epoch_*\n")
-    #     elif args.output_dir is not None:
-    #         os.makedirs(args.output_dir, exist_ok=True)
-    # accelerator.wait_for_everyone()
-
-    
-    # if args.dataset_name is not None:
-    #     # Downloading and loading a dataset from the hub.
-    #     raw_datasets = load_dataset(
-    #         args.dataset_name, args.dataset_config_name, trust_remote_code=args.trust_remote_code
-    #     )
-    # else:
-    #     data_files = {}
-    #     if args.train_file is not None:
-    #         data_files["train"] = args.train_file
-    #         extension = args.train_file.split(".")[-1]
-    #     if args.validatioin_file is not None:
-    #         data_files["validation"] = args.validation_file
-    #         extension = args.validation_file.split(".")[-1]
-    #     raw_datasets = load_dataset(extension, data_files = data_files)
 
     """This section load dataset from pandas DataFrames and split training and testing set"""
     if args.jsonl_data_file is not None:
@@ -218,7 +170,6 @@ def main():
     dataset_columns = ["maintext", "title"]
     text_column = args.text_column if args.text_column is not None else dataset_columns[0]
     summary_column = args.summary_column if args.summary_column is not None else dataset_columns[1]
-
 
     # WTF
     if args.val_max_target_length is None:
@@ -440,7 +391,7 @@ def main():
 
 
     T_LOSS = []
-    ROUGE = [[]] * 3
+    ROUGE = [[]] * 3 # rouge-1 rouge-2 rouge-L
     result = {}
 
     for epoch in range(starting_epoch, args.num_train_epochs):
@@ -479,15 +430,22 @@ def main():
             if completed_steps >= args.max_train_steps:
                 break
 
+        T_LOSS.append(total_loss.item()/ active_dataloader)
+
         model.eval()
 
         # this section using tw_rouge validate model performance
-
         score = inference(args, model, tokenizer, eval_dataloader, flag=True)
         # ipdb.set_trace()
-        # get_rouge()
-                
+        ROUGE[0].append(score['rouge-1']['f'])
+        ROUGE[1].append(score['rouge-2']['f'])
+        ROUGE[2].append(score['rouge-L']['f'])
 
+
+        print(ROUGE[0], ROUGE[1], ROUGE[2])
+        """--------------------------modify_line---------------------------------"""
+        # 1. record loss and rouge metrics
+        # 2. plot visualize loss and rouge
         
         logger.info(result)
 
@@ -497,48 +455,26 @@ def main():
             result["step"] = completed_steps
             accelerator.log(result, step = completed_steps)
 
-        # if args.push_to_hub and epoch < args.num_train_epochs - 1:
-        #     accelerator.wait_for_everyone()
-        #     unwrapped_model = accelerator.unwrap_model(model)
-        #     unwrapped_model.save_pretrained(
-        #         args.output_dir, is_main_process=accelerator.is_main_process, save_function=accelerator.save
-        #     )
-        #     if accelerator.is_main_process:
-        #         tokenizer.save_pretrained(args.output_dir)
-        #         api.upload_folder(
-        #             commit_message=f"Training in progress epoch {epoch}",
-        #             folder_path=args.output_dir,
-        #             repo_id=repo_id,
-        #             repo_type="model",
-        #             token=args.hub_token,
-        #         )
-
         if args.checkpointing_steps == "epoch":
             output_dir = f"epoch_{epoch}"
             if args.output_dir is not None:
                 output_dir = os.path.join(args.output_dir, output_dir)
             accelerator.save_state(output_dir)
+
         if args.output_dir is not None:
             accelerator.wait_for_everyone()
-
+            # save model
             for param in model.parameters():
                 param.data = param.data.contiguous()
             unwrapped_model = accelerator.unwrap_model(model)
             unwrapped_model.save_pretrained(
                     args.output_dir, is_main_process = accelerator.is_main_process, save_function = accelerator.save
             )
-
+            # save tokenizer   
             if accelerator.is_main_process:
                 tokenizer.save_pretrained(args.output_dir)
-                # if args.push_to_hub:
-                #     api.upload_folder(
-                #         commit_message="End of training",
-                #         folder_path=args.output_dir,
-                #         repo_id=repo_id,
-                #         repo_type="model",
-                #         token=args.hub_token,
-                #     )
 
+                """modify mapping result dict to rouge metrics"""
                 all_results = {f"eval_{k}": v for k, v in result.items()}
                 with open(os.path.join(args.output_dir, "all_results.json"), "w") as f:
                     json.dump(all_results, f)

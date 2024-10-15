@@ -12,9 +12,6 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-
-from parse_args import parse_args
-
 from transformers import (
     AutoConfig,
     AutoModelForSeq2SeqLM,
@@ -22,10 +19,10 @@ from transformers import (
     DataCollatorForSeq2Seq,
 )
 
+from parse_args import parse_args
 from tw_rouge import get_rouge
-
-import ipdb
 from utils import *
+import ipdb
 
 def Prepare_work(args):
     if args.jsonl_data_file is not None:
@@ -136,7 +133,6 @@ def inference(args, model, tokenizer, eval_dataloader, flag = False):
         "temperature"   : args.temperature,
     }
 
-
     for batch in tqdm(eval_dataloader):
         for key in batch:
             batch[key].to(DEVICE)
@@ -164,8 +160,6 @@ def inference(args, model, tokenizer, eval_dataloader, flag = False):
 
             decoded_preds, decoded_labels = postprocess_text(decoded_preds, decoded_labels)
             
-            
-
             index = batch["id"].cpu().numpy()
             for id, pred, ref in zip(index, decoded_preds, decoded_labels):
                 ids_set.append(str(id))
@@ -176,10 +170,10 @@ def inference(args, model, tokenizer, eval_dataloader, flag = False):
     print(f"succeed inference. jsonl file write down in {args.output_file}")
 
     if flag:
+        # record each inference rouge metrics during training
         rouge_score = get_rouge(ref_set, pred_set)
-        ipdb.set_trace()
-
-    return rouge_score
+        # ipdb.set_trace()
+        return rouge_score
 
 if __name__ == "__main__":
     # do all thing
