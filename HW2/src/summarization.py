@@ -439,7 +439,7 @@ def main():
         # ipdb.set_trace()
         ROUGE[0].append(score['rouge-1']['f'])
         ROUGE[1].append(score['rouge-2']['f'])
-        ROUGE[2].append(score['rouge-L']['f'])
+        ROUGE[2].append(score['rouge-l']['f'])
 
         print(ROUGE[0], ROUGE[1], ROUGE[2])
         """--------------------------modify_line---------------------------------"""
