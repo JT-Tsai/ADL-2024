@@ -442,16 +442,17 @@ def main():
         ROUGE[1].append(score['rouge-2']['f'])
         ROUGE[2].append(score['rouge-l']['f'])
 
-        result = {"ROUGE": ROUGE, "LOSS": T_LOSS}
         # print(ROUGE[0], ROUGE[1], ROUGE[2])
         """--------------------------modify_line---------------------------------"""
         # 1. record loss and rouge metrics
         # 2. plot visualize loss and rouge
         
-        logger.info(result)
+        # logger.info(result)
 
         if args.with_tracking:
-            result["train_loss"] = total_loss.item() / len(train_dataloader)
+            result["ROUGE"] = ROUGE
+            result["LOSS"] = T_LOSS
+            # result["train_loss"] = total_loss.item() / len(train_dataloader)
             result["epoch"] = epoch
             result["step"] = completed_steps
             accelerator.log(result, step = completed_steps)
@@ -478,7 +479,7 @@ def main():
                 """modify mapping result dict to rouge metrics"""
                 # all_results = {f"eval_{k}": v for k, v in result.items()}
                 with open(os.path.join(args.output_dir, "metrics.json"), "w") as f:
-                    json.dump(result, f, indent = 4)
+                    json.dump(result, f, indent = 2)
 
 if __name__ == "__main__":
     main()
