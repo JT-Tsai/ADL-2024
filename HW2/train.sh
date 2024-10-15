@@ -7,7 +7,7 @@ python src/summarization.py \
  --pad_to_max_length \
  --per_device_train_batch_size 8 \
  --per_device_eval_batch_size 24 \
- --gradient_accumulation_steps 3 \
+ --gradient_accumulation_steps 2 \
  --learning_rate 8e-5 \
  --num_train_epochs 20 \
  --num_warmup_steps 500 \
@@ -15,8 +15,8 @@ python src/summarization.py \
  --output_file output/first_train/infer.jsonl \
  --checkpointing_steps 500 \
  --with_tracking \
- --debug  \
- --n_test_data 100 \
  --num_beams 5 \
  --do_sample \
  --top_p 0.95
+ #--debug  \
+ #--n_test_data 100 \
