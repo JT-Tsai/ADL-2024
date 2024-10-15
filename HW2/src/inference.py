@@ -168,7 +168,10 @@ def inference(args, model, tokenizer, eval_dataloader, flag = False):
     if flag:
         # record each inference rouge metrics during training
         print(ref_set, pred_set)
-        rouge_score = get_rouge(ref_set, pred_set)
+        try:
+            rouge_score = get_rouge(ref_set, pred_set)
+        except:
+            rouge_score = {"rouge-1": {"f": 0.0}, "rouge-2": {"f": 0.0}, "rouge-l": {"f": 0.0}}
         # ipdb.set_trace()
         print(f"succeed inference. rouge value will be recorded.")
         return rouge_score
