@@ -442,6 +442,7 @@ def main():
         ROUGE[1].append(score['rouge-2']['f'])
         ROUGE[2].append(score['rouge-l']['f'])
 
+        result = {"ROUGE": ROUGE, "LOSS": T_LOSS}
         # print(ROUGE[0], ROUGE[1], ROUGE[2])
         """--------------------------modify_line---------------------------------"""
         # 1. record loss and rouge metrics
@@ -475,9 +476,9 @@ def main():
                 tokenizer.save_pretrained(args.output_dir)
 
                 """modify mapping result dict to rouge metrics"""
-                all_results = {f"eval_{k}": v for k, v in result.items()}
-                with open(os.path.join(args.output_dir, "all_results.json"), "w") as f:
-                    json.dump(all_results, f)
+                # all_results = {f"eval_{k}": v for k, v in result.items()}
+                with open(os.path.join(args.output_dir, "metrics.json"), "w") as f:
+                    json.dump(result, f)
 
 if __name__ == "__main__":
     main()

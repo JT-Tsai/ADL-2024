@@ -22,7 +22,7 @@ from transformers import (
 from parse_args import parse_args
 from tw_rouge import get_rouge
 from utils import *
-import ipdb
+# import ipdb
 
 def Prepare_work(args):
     if args.jsonl_data_file is not None:
@@ -165,16 +165,17 @@ def inference(args, model, tokenizer, eval_dataloader, flag = False):
                 ids_set.append(str(id))
                 pred_set.append(pred)
                 ref_set.append(ref)
-
-    write_jsonl_file(args.output_file, ids_set, pred_set)
-    print(f"succeed inference. jsonl file write down in {args.output_file}")
-
     if flag:
         # record each inference rouge metrics during training
         rouge_score = get_rouge(ref_set, pred_set)
         # ipdb.set_trace()
+        print(f"succeed inference. rouge value will be recorded.")
         return rouge_score
+    else:
+        write_jsonl_file(args.output_file, ids_set, pred_set)
+        print(f"succeed inference. jsonl file write down in {args.output_file}")
 
+        
 if __name__ == "__main__":
     # do all thing
     args = parse_args()
