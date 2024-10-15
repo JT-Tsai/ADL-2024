@@ -2,7 +2,6 @@ import nltk
 import jsonlines
 from filelock import FileLock
 from transformers.utils import is_offline_mode
-import matplotlib.pyplot as plt
 
 # import ipdb
 
