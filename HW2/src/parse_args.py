@@ -180,8 +180,7 @@ def parse_args():
             "The integration to report the results and logs to."
         ),
     )
-    parser.add_argument(
-        "--trust_remote_code",
+    parser.add_argument("--trust_remote_code",
         action="store_true",
         help=(
             "Whether to trust the execution of code from datasets/models defined on the Hub."

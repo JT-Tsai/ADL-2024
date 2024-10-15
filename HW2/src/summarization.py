@@ -431,7 +431,7 @@ def main():
                 break
 
         T_LOSS.append(total_loss.item()/ len(active_dataloader))
-        print(T_LOSS)
+        # print(T_LOSS)
 
         model.eval()
 
@@ -453,7 +453,7 @@ def main():
             result["ROUGE"] = ROUGE
             result["LOSS"] = T_LOSS
             # result["train_loss"] = total_loss.item() / len(train_dataloader)
-            result["epoch"] = epoch
+            result["epoch"] = epoch # from zero
             result["step"] = completed_steps
             accelerator.log(result, step = completed_steps)
 
@@ -479,7 +479,7 @@ def main():
                 """modify mapping result dict to rouge metrics"""
                 # all_results = {f"eval_{k}": v for k, v in result.items()}
                 with open(os.path.join(args.output_dir, "metrics.json"), "w") as f:
-                    json.dump(result, f, indent = 2)
+                    json.dump(result, f, indent = 4)
 
 if __name__ == "__main__":
     main()
