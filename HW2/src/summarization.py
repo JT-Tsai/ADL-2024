@@ -478,7 +478,7 @@ def main():
                 """modify mapping result dict to rouge metrics"""
                 # all_results = {f"eval_{k}": v for k, v in result.items()}
                 with open(os.path.join(args.output_dir, "metrics.json"), "w") as f:
-                    json.dump(result, f)
+                    json.dump(result, f, indent = 4)
 
 if __name__ == "__main__":
     main()
