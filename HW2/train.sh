@@ -13,7 +13,7 @@ python src/summarization.py \
  --num_warmup_steps 500 \
  --output_dir output/first_train \
  --output_file output/first_train/infer.jsonl \
- --checkpoint_steps 500 \
+ --checkpointing_steps 500 \
  --with_tracking \
  --debug  \
  --n_test_data 100 \
