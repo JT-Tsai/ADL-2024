@@ -37,4 +37,5 @@ def write_jsonl_file(output_file, id_set, pred_set):
         for id, pred in zip(id_set, pred_set):
             writer.write({"title": pred, "id": id})
 
-def plot()
+def plot():
+    pass
