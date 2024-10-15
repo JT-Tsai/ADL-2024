@@ -71,14 +71,6 @@ def parse_args():
             "param of ``model.generate``, which is used during ``evaluate`` and ``predict``."
         ),
     )
-    parser.add_argument("--num_beams",
-        type=int,
-        default=None,
-        help=(
-            "Number of beams to use for evaluation. This argument will be "
-            "passed to ``model.generate``, which is used during ``evaluate`` and ``predict``."
-        ),
-    )
     parser.add_argument("--pad_to_max_length",
         action="store_true",
         help="If passed, pad all samples to `max_length`. Otherwise, dynamic padding is used.",
@@ -191,6 +183,14 @@ def parse_args():
     parser.add_argument("--split_rate", type=float, default=0.1, help="the ratio of the training to testing data")
     parser.add_argument("--debug", action="store_true", help="using this to test code")
     parser.add_argument("--n_test_data", type=int, default=300, help="if --debug passed, choose test data size you want")
+    parser.add_argument("--num_beams",
+        type=int,
+        default=None,
+        help=(
+            "Number of beams to use for evaluation. This argument will be "
+            "passed to ``model.generate``, which is used during ``evaluate`` and ``predict``."
+        ),
+    )
     parser.add_argument("--do_sample", action="store_true", help="decoder algorithm")
     parser.add_argument("--top_k", type=float, default=None, help="when --do_sample passed, this parameter works")
     parser.add_argument("--top_p", type=float, default=None, help="when --do_sample passed, this parameter works")
