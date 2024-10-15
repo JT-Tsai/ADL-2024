@@ -1,7 +1,7 @@
 #!bin/bash
 # for sumarization training
 
-python src/summarization.py
+python src/summarization.py \
  --jsonl_data_file data/data/train.jsonl \
  --model_name_or_path google/mt5-small \
  --pad_to_max_length \
