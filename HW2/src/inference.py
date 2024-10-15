@@ -167,6 +167,7 @@ def inference(args, model, tokenizer, eval_dataloader, flag = False):
                 ref_set.append(ref)
     if flag:
         # record each inference rouge metrics during training
+        print(ref_set, pred_set)
         rouge_score = get_rouge(ref_set, pred_set)
         # ipdb.set_trace()
         print(f"succeed inference. rouge value will be recorded.")
