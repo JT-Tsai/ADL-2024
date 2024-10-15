@@ -431,6 +431,7 @@ def main():
                 break
 
         T_LOSS.append(total_loss.item()/ len(active_dataloader))
+        print(T_LOSS)
 
         model.eval()
 
@@ -441,7 +442,7 @@ def main():
         ROUGE[1].append(score['rouge-2']['f'])
         ROUGE[2].append(score['rouge-l']['f'])
 
-        print(ROUGE[0], ROUGE[1], ROUGE[2])
+        # print(ROUGE[0], ROUGE[1], ROUGE[2])
         """--------------------------modify_line---------------------------------"""
         # 1. record loss and rouge metrics
         # 2. plot visualize loss and rouge

@@ -2,6 +2,7 @@ import nltk
 import jsonlines
 from filelock import FileLock
 from transformers.utils import is_offline_mode
+import matplotlib.pyplot as plt
 
 # import ipdb
 
@@ -35,3 +36,5 @@ def write_jsonl_file(output_file, id_set, pred_set):
     with jsonlines.open(output_file, 'w') as writer:
         for id, pred in zip(id_set, pred_set):
             writer.write({"title": pred, "id": id})
+
+def plot()
