@@ -436,7 +436,7 @@ def main():
                 break
 
         T_LOSS.append(total_loss.item()/ len(active_dataloader))
-        print("total_loss: "total_loss.item())
+        print("total_loss: ", total_loss.item())
 
         model.eval()
 
