@@ -101,6 +101,11 @@ def main():
     if args.seed is not None:
         set_seed(args.seed)
 
+    if accelerator.is_main_process:
+        if args.output_dir is not None:
+            os.makedirs(args.output_dir, exist_ok=True)
+    accelerator.wait_for_everyone()
+
     """This section load dataset from pandas DataFrames and split training and testing set"""
     if args.jsonl_data_file is not None:
         df = pd.read_json(args.jsonl_data_file, lines = True, encoding = 'utf-8')
@@ -423,9 +428,9 @@ def main():
             if isinstance(checkpointing_steps, int):
                 if completed_steps % checkpointing_steps == 0 and accelerator.sync_gradients:
                     output_dir = f"step_{completed_steps}"
-                if args.output_dir is not None:
-                    output_dir = os.path.join(args.output_dir, output_dir)
-                accelerator.save_state(output_dir)
+                    if args.output_dir is not None:
+                        output_dir = os.path.join(args.output_dir, output_dir)
+                    accelerator.save_state(output_dir)
 
             if completed_steps >= args.max_train_steps:
                 break
