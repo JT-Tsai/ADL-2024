@@ -22,7 +22,7 @@ from transformers import (
 from parse_args import parse_args
 from tw_rouge import get_rouge
 from utils import *
-import ipdb
+# import ipdb
 
 
 def Prepare_work(args, debug = False):
@@ -150,7 +150,7 @@ def inference(args, model, tokenizer, eval_dataloader, flag = False):
         for key in batch:
             batch[key] = batch[key].to(DEVICE)
 
-        ipdb.set_trace()
+        # ipdb.set_trace()
         
         with torch.no_grad():
             generated_tokens = model.generate(
