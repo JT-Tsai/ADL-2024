@@ -148,7 +148,7 @@ def inference(args, model, tokenizer, eval_dataloader, flag = False):
 
     for batch in tqdm(eval_dataloader):
         for key in batch:
-            batch[key].to(DEVICE)
+            batch[key] = batch[key].to(DEVICE)
 
         ipdb.set_trace()
         
