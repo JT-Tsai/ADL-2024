@@ -396,7 +396,7 @@ def main():
 
 
     T_LOSS = []
-    ROUGE = [[]] * 3 # rouge-1 rouge-2 rouge-L
+    ROUGE = [[] for _ in range(3)] # rouge-1 rouge-2 rouge-L
     result = {}
 
     for epoch in range(starting_epoch, args.num_train_epochs):

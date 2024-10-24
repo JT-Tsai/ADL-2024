@@ -22,7 +22,7 @@ from transformers import (
 from parse_args import parse_args
 from tw_rouge import get_rouge
 from utils import *
-import ipdb
+# import ipdb
 
 
 def Prepare_work(args, debug = False):
@@ -56,7 +56,7 @@ def Prepare_work(args, debug = False):
 
     if debug:
         print("model prepared")
-        ipdb.set_trace()
+        # ipdb.set_trace()
 
 
     prefix = "summarize: "
