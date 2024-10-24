@@ -192,7 +192,7 @@ def parse_args():
         ),
     )
     parser.add_argument("--do_sample", action="store_true", help="decoder algorithm")
-    parser.add_argument("--top_k", type=float, default=None, help="when --do_sample passed, this parameter works")
+    parser.add_argument("--top_k", type=int, default=None, help="when --do_sample passed, this parameter works")
     parser.add_argument("--top_p", type=float, default=None, help="when --do_sample passed, this parameter works")
     parser.add_argument("--temperature", type=float, default=None, help="this parameter control generate diversity")
 
