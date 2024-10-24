@@ -36,7 +36,7 @@ def Prepare_work(args, debug = False):
         if args.debug:
             print(df.head(1))
     
-    config = AutoConfig.from_pretrained(args.model_name_or_path, trust_remote_code=args.trsut_remote_code)
+    config = AutoConfig.from_pretrained(args.model_name_or_path, trust_remote_code=args.trust_remote_code)
 
     tokenizer = AutoTokenizer.from_pretrained(
         args.totenizer_name or args.model_name_or_path,
