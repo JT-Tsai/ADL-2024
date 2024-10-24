@@ -457,7 +457,7 @@ def main():
         # logger.info(result)
 
         if args.with_tracking:
-            result["ROUGE"] = {"rouge-1":ROUGE[0], "rouge-1": ROUGE[1], "rouge-l": ROUGE[2]}
+            result["ROUGE"] = {"rouge-1":ROUGE[0], "rouge-2": ROUGE[1], "rouge-l": ROUGE[2]}
             result["LOSS"] = T_LOSS
             # result["train_loss"] = total_loss.item() / len(train_dataloader)
             result["epoch"] = epoch # from zero
