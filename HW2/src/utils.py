@@ -1,3 +1,4 @@
+import os
 import nltk
 import jsonlines
 from filelock import FileLock
@@ -31,6 +32,7 @@ def postprocess_text(preds, labels):
     return preds, labels
 
 def write_jsonl_file(output_file, id_set, pred_set):
+    os.makedirs(os.path.dirname(output_file), exist_ok = True)
     """This is for validation format output"""
     with jsonlines.open(output_file, 'w') as writer:
         for id, pred in zip(id_set, pred_set):

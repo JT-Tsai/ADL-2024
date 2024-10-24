@@ -8,6 +8,7 @@ python src/inference.py \
     --val_max_target_length 128 \
     --num_beams 4 \
     --do_sample \
-    --top_p 0.95
-    #  --debug \
+    --top_p 0.95 \
+    --output_file result/tmp.jsonl \
+    --debug \
  

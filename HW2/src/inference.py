@@ -24,7 +24,8 @@ from tw_rouge import get_rouge
 from utils import *
 # import ipdb
 
-def Prepare_work(args):
+
+def Prepare_work(args, debug = False):
     if args.jsonl_data_file is not None:
         df = pd.read_json(args.jsonl_data_file, lines=True, encoding='utf-8')
         if args.debug:
@@ -43,12 +44,18 @@ def Prepare_work(args):
         trust_remote_code = args.turst_remote_code,
     )
 
+    if debug:
+        print("tokenizer prepared")
+
     model = AutoModelForSeq2SeqLM.from_pretrained(
         args.model_name_or_path,
         from_tf = False,
         config = config,
         trust_remote_code = args.trust_remote_code,
     )
+
+    if debug:
+        print("model prepared")
 
     prefix = "summarize: "
     column_names = eval_dataset.column_names
@@ -97,6 +104,9 @@ def Prepare_work(args):
         desc="Running tokenizer on dataset"
     )
 
+    if debug:
+        print("inference dataset prepared")
+
     label_pad_token_id = -100 if args.ignore_pad_token_for_loss else tokenizer.pad_token_id
 
     for index in random.sample(range(len(eval_dataset)), 1):
@@ -110,6 +120,9 @@ def Prepare_work(args):
     )
 
     eval_dataloader = DataLoader(eval_dataset, collate_fn=data_collator, batch_size=args.per_device_eval_batch_size)
+    
+    if debug:
+        print("eval_dataloader prepared")
 
     return model, tokenizer, eval_dataloader
 
@@ -183,5 +196,5 @@ def inference(args, model, tokenizer, eval_dataloader, flag = False):
 if __name__ == "__main__":
     # do all thing
     args = parse_args()
-    element = Prepare_work(args)
+    element = Prepare_work(args, debug = args.debug)
     inference(args, *element)
