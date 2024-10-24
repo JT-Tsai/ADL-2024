@@ -41,7 +41,7 @@ def Prepare_work(args, debug = False):
     tokenizer = AutoTokenizer.from_pretrained(
         args.tokenizer_name or args.model_name_or_path,
         use_fast = True,
-        trust_remote_code = args.turst_remote_code,
+        trust_remote_code = args.trust_remote_code,
     )
 
     if debug:
