@@ -10,5 +10,5 @@ python src/inference.py \
     --do_sample \
     --top_p 0.95 \
     --output_file result/tmp.jsonl \
-    # --debug \
+    --debug \
  
