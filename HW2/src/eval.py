@@ -29,6 +29,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     rouge_score = eval(args.reference, args.submission)
     
-    print(f"rouge-1 is {rouge_score["rouge-1"]['f']}")
-    print(f"rouge-2 is {rouge_score["rouge-2"]['f']}")
-    print(f"rouge-l is {rouge_score["rouge-l"]['f']}")
+    print(f"rouge-1 is {rouge_score['rouge-1']['f']}")
+    print(f"rouge-2 is {rouge_score['rouge-2']['f']}")
+    print(f"rouge-l is {rouge_score['rouge-l']['f']}")
