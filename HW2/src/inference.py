@@ -39,7 +39,7 @@ def Prepare_work(args, debug = False):
     config = AutoConfig.from_pretrained(args.model_name_or_path, trust_remote_code=args.trust_remote_code)
 
     tokenizer = AutoTokenizer.from_pretrained(
-        args.totenizer_name or args.model_name_or_path,
+        args.tokenizer_name or args.model_name_or_path,
         use_fast = True,
         trust_remote_code = args.turst_remote_code,
     )
